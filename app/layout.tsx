@@ -8,17 +8,14 @@ import CartProvider from "@/components/CartProvider";
 import SessionProvider from "@/components/SessionProvider";
 
 
-
 export const metadata: Metadata = {
 
-title:"Fairy's Parapharmacie",
+  title: "Fairy's Parapharmacie",
 
-description:
-"Votre parapharmacie en ligne pour vos produits santé et beauté",
+  description:
+    "Votre parapharmacie en ligne pour vos produits santé et beauté",
 
 };
-
-
 
 
 
@@ -26,16 +23,14 @@ export default function RootLayout({
 
 children,
 
-}:Readonly<{
+}: Readonly<{
 
-children:React.ReactNode;
+children: React.ReactNode;
 
 }>) {
 
 
-
 return (
-
 
 <html lang="fr">
 
@@ -43,12 +38,10 @@ return (
 <body>
 
 
-
 <SessionProvider>
 
 
 <CartProvider>
-
 
 
 <Navbar />
@@ -60,19 +53,16 @@ return (
 <Footer />
 
 
-
 </CartProvider>
 
 
 </SessionProvider>
 
 
-
 </body>
 
 
 </html>
-
 
 );
 

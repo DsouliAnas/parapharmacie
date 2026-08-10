@@ -1,12 +1,9 @@
-import connectDB from "@/lib/mongodb";
-import Product from "@/models/Product";
 import { NextRequest } from "next/server";
-
+import connectDB from "@/lib/mongodb";
+import Subcategory from "@/models/Subcategory";
 import "@/models/Category";
-import "@/models/Subcategory";
-import "@/models/Brand";
 
-// GET ONE PRODUCT
+// GET ONE SUBCATEGORY
 
 export async function GET(
   request: Request,
@@ -21,15 +18,13 @@ export async function GET(
 
     const { id } = await context.params;
 
-    const product = await Product.findById(id)
-      .populate("category")
-      .populate("subcategory")
-      .populate("brand");
+    const subcategory = await Subcategory.findById(id)
+      .populate("category", "name slug");
 
-    if (!product) {
+    if (!subcategory) {
       return Response.json(
         {
-          error: "Product not found",
+          error: "Subcategory not found",
         },
         {
           status: 404,
@@ -37,13 +32,13 @@ export async function GET(
       );
     }
 
-    return Response.json(product);
+    return Response.json(subcategory);
   } catch (error) {
-    console.error("GET PRODUCT ERROR:", error);
+    console.error("GET SUBCATEGORY ERROR:", error);
 
     return Response.json(
       {
-        error: "Failed to get product",
+        error: "Failed to get subcategory",
       },
       {
         status: 500,
@@ -52,7 +47,7 @@ export async function GET(
   }
 }
 
-// UPDATE PRODUCT
+// UPDATE SUBCATEGORY
 
 export async function PUT(
   request: NextRequest,
@@ -69,22 +64,19 @@ export async function PUT(
 
     const body = await request.json();
 
-    const product = await Product.findByIdAndUpdate(
+    const subcategory = await Subcategory.findByIdAndUpdate(
       id,
       body,
       {
         new: true,
         runValidators: true,
       }
-    )
-      .populate("category")
-      .populate("subcategory")
-      .populate("brand");
+    );
 
-    if (!product) {
+    if (!subcategory) {
       return Response.json(
         {
-          error: "Product not found",
+          error: "Subcategory not found",
         },
         {
           status: 404,
@@ -92,13 +84,13 @@ export async function PUT(
       );
     }
 
-    return Response.json(product);
+    return Response.json(subcategory);
   } catch (error) {
-    console.error("UPDATE PRODUCT ERROR:", error);
+    console.error("UPDATE SUBCATEGORY ERROR:", error);
 
     return Response.json(
       {
-        error: "Failed to update product",
+        error: "Failed to update subcategory",
       },
       {
         status: 500,
@@ -107,7 +99,7 @@ export async function PUT(
   }
 }
 
-// DELETE PRODUCT
+// DELETE SUBCATEGORY
 
 export async function DELETE(
   request: Request,
@@ -122,12 +114,13 @@ export async function DELETE(
 
     const { id } = await context.params;
 
-    const product = await Product.findByIdAndDelete(id);
+    const subcategory =
+      await Subcategory.findByIdAndDelete(id);
 
-    if (!product) {
+    if (!subcategory) {
       return Response.json(
         {
-          error: "Product not found",
+          error: "Subcategory not found",
         },
         {
           status: 404,
@@ -136,10 +129,10 @@ export async function DELETE(
     }
 
     return Response.json({
-      message: "Product deleted",
+      message: "Subcategory deleted",
     });
   } catch (error) {
-    console.error("DELETE PRODUCT ERROR:", error);
+    console.error("DELETE SUBCATEGORY ERROR:", error);
 
     return Response.json(
       {

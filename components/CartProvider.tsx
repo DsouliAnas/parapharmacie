@@ -1,372 +1,159 @@
 "use client";
 
-
-import {
-createContext,
-useContext,
-useState,
-useEffect,
-ReactNode
-} from "react";
-
-
+import { createContext, useContext, useSyncExternalStore, useState, ReactNode } from "react";
 
 interface CartItem {
-
-_id:string;
-
-name:string;
-
-price:number;
-
-image:string;
-
-quantity:number;
-
+  _id: string;
+  name: string;
+  price: number;
+  image: string;
+  quantity: number;
 }
-
-
 
 interface CartContextType {
-
-cart:CartItem[];
-
-addToCart:(item:CartItem)=>void;
-
-removeFromCart:(id:string)=>void;
-
-increaseQuantity:(id:string)=>void;
-
-decreaseQuantity:(id:string)=>void;
-
-clearCart:()=>void;
-
+  cart: CartItem[];
+  cartCount: number;
+  message: string;
+  addToCart: (item: CartItem) => void;
+  removeFromCart: (id: string) => void;
+  increaseQuantity: (id: string) => void;
+  decreaseQuantity: (id: string) => void;
+  clearCart: () => void;
 }
 
+const CartContext = createContext<CartContextType | undefined>(undefined);
 
+/* ------------------------------------------------------------------ */
+/* External store: the cart lives outside React, backed by            */
+/* localStorage. React just subscribes to it via useSyncExternalStore. */
+/* This avoids ever calling setState inside a useEffect.               */
+/* ------------------------------------------------------------------ */
 
-const CartContext =
-createContext<CartContextType | undefined>(undefined);
+const STORAGE_KEY = "fairys-cart";
 
+// Must be a stable reference for the server snapshot — returning a
+// new [] on every call makes React think the snapshot changed on
+// every render, which triggers an infinite-loop warning.
+const EMPTY_CART: CartItem[] = [];
 
+let cart: CartItem[] = EMPTY_CART;
+let initialized = false;
+const listeners = new Set<() => void>();
 
+function ensureInitialized() {
+  if (initialized || typeof window === "undefined") return;
+  initialized = true;
 
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (!saved) return;
 
-function getInitialCart():CartItem[]{
-
-
-if(typeof window === "undefined"){
-
-return [];
-
+  try {
+    cart = JSON.parse(saved);
+  } catch {
+    // ignore corrupted localStorage data
+  }
 }
 
-
-
-const savedCart =
-localStorage.getItem("fairys-cart");
-
-
-
-if(!savedCart){
-
-return [];
-
+function getSnapshot() {
+  ensureInitialized();
+  return cart;
 }
 
-
-
-try{
-
-return JSON.parse(savedCart);
-
+function getServerSnapshot(): CartItem[] {
+  return EMPTY_CART;
 }
 
-catch{
-
-return [];
-
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  return () => listeners.delete(callback);
 }
 
-
+function setCart(updater: CartItem[] | ((current: CartItem[]) => CartItem[])) {
+  cart = typeof updater === "function" ? updater(cart) : updater;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+  listeners.forEach((listener) => listener());
 }
 
+/* ------------------------------------------------------------------ */
 
+export default function CartProvider({ children }: { children: ReactNode }) {
+  const cart = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const [message, setMessage] = useState("");
 
+  function addToCart(item: CartItem) {
+    setCart((current) => {
+      const existing = current.find((product) => product._id === item._id);
 
+      if (existing) {
+        return current.map((product) =>
+          product._id === item._id
+            ? { ...product, quantity: product.quantity + 1 }
+            : product
+        );
+      }
 
+      return [...current, { ...item, quantity: item.quantity || 1 }];
+    });
 
-export default function CartProvider({
-children
-}:{
-children:ReactNode
-}){
+    setMessage(`${item.name} ajouté au panier ✅`);
 
+    setTimeout(() => {
+      setMessage("");
+    }, 2500);
+  }
 
+  function removeFromCart(id: string) {
+    setCart((current) => current.filter((item) => item._id !== id));
+  }
 
-const [cart,setCart] = useState<CartItem[]>(
-getInitialCart
-);
+  function increaseQuantity(id: string) {
+    setCart((current) =>
+      current.map((item) =>
+        item._id === id ? { ...item, quantity: item.quantity + 1 } : item
+      )
+    );
+  }
 
+  function decreaseQuantity(id: string) {
+    setCart((current) =>
+      current.map((item) =>
+        item._id === id && item.quantity > 1
+          ? { ...item, quantity: item.quantity - 1 }
+          : item
+      )
+    );
+  }
 
+  function clearCart() {
+    setCart([]);
+  }
 
-const [mounted,setMounted] = useState(false);
+  const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
-
-
-
-
-useEffect(()=>{
-
-setMounted(true);
-
-},[]);
-
-
-
-
-
-
-
-useEffect(()=>{
-
-
-if(mounted){
-
-localStorage.setItem(
-"fairys-cart",
-JSON.stringify(cart)
-);
-
+  return (
+    <CartContext.Provider
+      value={{
+        cart,
+        cartCount,
+        message,
+        addToCart,
+        removeFromCart,
+        increaseQuantity,
+        decreaseQuantity,
+        clearCart,
+      }}
+    >
+      {children}
+    </CartContext.Provider>
+  );
 }
 
+export function useCart() {
+  const context = useContext(CartContext);
 
-},[cart,mounted]);
+  if (!context) {
+    throw new Error("useCart must be used inside CartProvider");
+  }
 
-
-
-
-
-
-
-function addToCart(item:CartItem){
-
-
-
-setCart((current)=>{
-
-
-const existing =
-current.find(
-(product)=>
-product._id===item._id
-);
-
-
-
-
-
-if(existing){
-
-
-return current.map(
-(product)=>
-
-product._id===item._id
-
-?
-
-{
-...product,
-quantity:
-product.quantity + 1
-}
-
-:
-
-product
-
-);
-
-
-}
-
-
-
-
-
-
-return [
-
-...current,
-
-{
-...item,
-quantity:item.quantity || 1
-}
-
-];
-
-
-});
-
-
-
-}
-
-
-
-
-
-
-
-
-function removeFromCart(id:string){
-
-
-setCart((current)=>
-
-current.filter(
-(item)=>
-item._id !== id
-)
-
-);
-
-
-}
-
-
-
-function increaseQuantity(id:string){
-
-
-setCart((current)=>
-
-current.map((item)=>
-
-item._id === id
-
-?
-
-{
-...item,
-quantity:item.quantity + 1
-}
-
-:
-
-item
-
-)
-
-);
-
-
-}
-
-
-
-
-
-function decreaseQuantity(id:string){
-
-
-setCart((current)=>
-
-current.map((item)=>
-
-item._id === id && item.quantity > 1
-
-?
-
-{
-...item,
-quantity:item.quantity - 1
-}
-
-:
-
-item
-
-)
-
-);
-
-
-}
-
-
-
-function clearCart(){
-
-setCart([]);
-
-}
-
-
-
-
-
-
-
-return (
-
-<CartContext.Provider
-
-value={{
-
-cart,
-
-addToCart,
-
-removeFromCart,
-
-increaseQuantity,
-
-decreaseQuantity,
-
-clearCart
-
-}}
-
->
-
-{mounted ? children : null}
-
-</CartContext.Provider>
-
-);
-
-
-
-}
-
-
-
-
-
-
-
-export function useCart(){
-
-
-const context =
-useContext(CartContext);
-
-
-
-if(!context){
-
-throw new Error(
-"useCart must be used inside CartProvider"
-);
-
-}
-
-
-
-return context;
-
-
+  return context;
 }

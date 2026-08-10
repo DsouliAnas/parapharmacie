@@ -5,6 +5,12 @@ const OrderSchema = new Schema(
 
 {
 
+    user:{
+  type:Schema.Types.ObjectId,
+  ref:"User",
+  required:true
+},
+
 customerName:{
 type:String,
 required:true

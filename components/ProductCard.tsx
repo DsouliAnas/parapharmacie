@@ -2,7 +2,7 @@
 
 
 import {useCart} from "@/components/CartProvider";
-
+import Link from "next/link";
 
 
 interface ProductCardProps {
@@ -81,33 +81,36 @@ hover:shadow-md
 transition
 ">
 
+<Link href={`/products/${_id}`}>
 
-<img
+  <img
+    src={image}
+    alt={name}
+    className="
+    w-full
+    h-48
+    object-cover
+    rounded-xl
+    cursor-pointer
+    "
+  />
 
-src={image}
+</Link>
 
-alt={name}
+<Link href={`/products/${_id}`}>
 
-className="
-w-full
-h-48
-object-cover
-rounded-xl
-"
+  <h3
+    className="
+    font-semibold
+    mt-4
+    cursor-pointer
+    hover:text-[#7C8B73]
+    "
+  >
+    {name}
+  </h3>
 
-/>
-
-
-
-
-<h3 className="
-font-semibold
-mt-4
-">
-
-{name}
-
-</h3>
+</Link>
 
 
 
@@ -145,7 +148,22 @@ stock
 
 </p>
 
-
+<Link
+  href={`/products/${_id}`}
+  className="
+  block
+  mt-4
+  text-center
+  border
+  border-[#7C8B73]
+  text-[#7C8B73]
+  font-semibold
+  py-3
+  rounded-full
+  "
+>
+  Voir le produit
+</Link>
 
 
 <button
