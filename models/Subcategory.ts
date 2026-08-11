@@ -19,14 +19,27 @@ const SubcategorySchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Category",
       required: true,
+      index: true,
     },
 
     image: {
       type: String,
+      default: "",
+      trim: true,
     },
   },
   {
     timestamps: true,
+  }
+);
+
+SubcategorySchema.index(
+  {
+    category: 1,
+    slug: 1,
+  },
+  {
+    unique: true,
   }
 );
 

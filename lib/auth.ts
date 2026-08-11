@@ -1,168 +1,84 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-
-import User from "@/models/User";
-import connectDB from "@/lib/mongodb";
-
 import bcrypt from "bcryptjs";
 
+import connectDB from "@/lib/mongodb";
+import User from "@/models/User";
 
 export const authOptions: NextAuthOptions = {
-
-
   providers: [
-
     CredentialsProvider({
-
       name: "Credentials",
 
       credentials: {
-
         email: {
           label: "Email",
-          type: "text"
+          type: "email",
         },
 
         password: {
           label: "Password",
-          type: "password"
-        }
-
+          type: "password",
+        },
       },
 
-
       async authorize(credentials) {
-
-
-        if (
-          !credentials?.email ||
-          !credentials?.password
-        ) {
-
+        if (!credentials?.email || !credentials?.password) {
           return null;
-
         }
 
-
+        const email = credentials.email.trim().toLowerCase();
 
         await connectDB();
 
-
-
-        const user =
-          await User.findOne({
-
-            email: credentials.email.toLowerCase()
-
-          });
-
-
+        const user = await User.findOne({
+          email,
+        });
 
         if (!user) {
-
           return null;
-
         }
 
+        const passwordValid = await bcrypt.compare(
+          credentials.password,
+          user.password
+        );
 
-
-        const isValid =
-          await bcrypt.compare(
-            credentials.password,
-            user.password
-          );
-
-
-
-        if (!isValid) {
-
+        if (!passwordValid) {
           return null;
-
         }
-
-
 
         return {
-
           id: user._id.toString(),
-
           name: user.name,
-
           email: user.email,
-
-          role: user.role
-
+          role: user.role,
         };
-
-
-      }
-
-
-    })
-
+      },
+    }),
   ],
 
-
-
-
-
   session: {
-
-    strategy: "jwt"
-
+    strategy: "jwt",
   },
 
-
-
-
-
   callbacks: {
-
-
     async jwt({ token, user }) {
-
-
       if (user) {
-
         token.id = user.id;
-
         token.role = user.role;
-
       }
-
 
       return token;
-
     },
 
-
-
-
-
     async session({ session, token }) {
-
-
       if (session.user) {
-
-
-        session.user.id =
-          token.id as string;
-
-
-        session.user.role =
-          token.role as string;
-
-
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
       }
 
-
       return session;
-
-    }
-
-
-  }
-
-
-
+    },
+  },
 };

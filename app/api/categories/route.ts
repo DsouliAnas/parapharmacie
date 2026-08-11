@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Category from "@/models/Category";
 
-export async function GET() {
+export async function GET(): Promise<Response> {
   try {
     await connectDB();
 
@@ -25,17 +25,33 @@ export async function GET() {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(
+  request: NextRequest
+): Promise<Response> {
   try {
     await connectDB();
 
-    const body = await request.json();
+    const body: {
+      name?: string;
+      slug?: string;
+      image?: string;
+    } = await request.json();
+
+    if (!body.name || !body.slug) {
+      return Response.json(
+        {
+          error: "Name and slug are required",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
     const category = await Category.create({
       name: body.name,
       slug: body.slug,
       image: body.image || "",
-      subcategories: body.subcategories || [],
     });
 
     return Response.json(category, {

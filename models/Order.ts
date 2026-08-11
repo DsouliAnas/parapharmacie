@@ -1,147 +1,145 @@
-import {Schema, models, model} from "mongoose";
+import mongoose, {
+  Schema,
+  models,
+  model,
+  type Document,
+} from "mongoose";
 
-
-const OrderSchema = new Schema(
-
-{
-
-    user:{
-  type:Schema.Types.ObjectId,
-  ref:"User",
-  required:true
-},
-
-customerName:{
-type:String,
-required:true
-},
-
-
-customerEmail:{
-type:String,
-required:true
-},
-
-
-phone:{
-type:String,
-required:true
-},
-
-
-backupPhone:{
-type:String
-},
-
-
-address:{
-type:String,
-required:true
-},
-
-
-
-products:[
-
-{
-
-product:{
-
-type:Schema.Types.ObjectId,
-
-ref:"Product",
-
-required:true
-
-},
-
-
-quantity:{
-
-type:Number,
-
-required:true
-
-},
-
-
-price:{
-
-type:Number,
-
-required:true
-
+interface OrderProduct {
+  product: mongoose.Types.ObjectId;
+  quantity: number;
+  price: number;
 }
 
-
+export interface OrderDocument extends Document {
+  orderNumber: string;
+  user: mongoose.Types.ObjectId;
+  customerName: string;
+  customerEmail: string;
+  phone: string;
+  backupPhone?: string;
+  address: string;
+  products: OrderProduct[];
+  totalPrice: number;
+  paymentMethod: string;
+  status:
+    | "Pending"
+    | "Processing"
+    | "Shipped"
+    | "Delivered"
+    | "Cancelled";
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-],
+const OrderSchema = new Schema<OrderDocument>(
+  {
+    orderNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+      default: () => {
+        const timestamp = Date.now().toString(36).toUpperCase();
+        const random = Math.random()
+          .toString(36)
+          .substring(2, 6)
+          .toUpperCase();
 
+        return `FAIRYS-${timestamp}-${random}`;
+      },
+    },
 
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
 
-totalPrice:{
+    customerName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-type:Number,
+    customerEmail: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-required:true
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-},
+    backupPhone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
 
+    address: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
+    products: [
+      {
+        product: {
+          type: Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
 
-paymentMethod:{
+        quantity: {
+          type: Number,
+          required: true,
+          min: 1,
+        },
 
-type:String,
+        price: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+      },
+    ],
 
-default:"Cash on Delivery"
+    totalPrice: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
 
-},
+    paymentMethod: {
+      type: String,
+      default: "Cash on Delivery",
+      trim: true,
+    },
 
-
-
-status:{
-
-type:String,
-
-enum:[
-
-"Pending",
-
-"Processing",
-
-"Shipped",
-
-"Delivered",
-
-"Cancelled"
-
-],
-
-default:"Pending"
-
-}
-
-
-},
-
-{
-
-timestamps:true
-
-}
-
+    status: {
+      type: String,
+      enum: [
+        "Pending",
+        "Processing",
+        "Shipped",
+        "Delivered",
+        "Cancelled",
+      ],
+      default: "Pending",
+    },
+  },
+  {
+    timestamps: true,
+  }
 );
-
-
 
 const Order =
-models.Order ||
-model(
-"Order",
-OrderSchema
-);
-
-
+  models.Order ||
+  model<OrderDocument>("Order", OrderSchema);
 
 export default Order;

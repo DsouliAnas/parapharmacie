@@ -28,10 +28,10 @@ const legalLinks = [
 
 export default function Footer() {
   return (
-    <footer className="relative overflow-hidden bg-[var(--sage-dark)] text-white">
+    <footer className="relative overflow-hidden bg-[var(--sage-dark)] text-bl">
       {/* subtle botanical accent, echoes the hero blobs without competing */}
       <div
-        className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 bg-white/5 blur-3xl"
+        className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 bg-black/5 blur-3xl"
         style={{ borderRadius: "62% 38% 30% 70% / 60% 30% 70% 40%" }}
         aria-hidden
       />
@@ -41,14 +41,14 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/10">
                 <Leaf size={18} strokeWidth={1.75} />
               </span>
               <span className="font-display text-2xl font-medium">
                 Fairy&apos;s
               </span>
             </div>
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/70">
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-black/70">
               Votre parapharmacie en ligne. Des produits santé et beauté
               sélectionnés avec soin, pour prendre soin de vous au quotidien.
             </p>
@@ -59,7 +59,7 @@ export default function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Fairy's sur Instagram"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-black/10 transition hover:bg-black/20"
               >
 <span className="text-sm font-bold">I</span>              </a>
               <a
@@ -67,7 +67,7 @@ export default function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Fairy's sur Facebook"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-black/10 transition hover:bg-black/20"
               >
 <span className="text-sm font-bold">f</span>              </a>
             </div>
@@ -75,7 +75,7 @@ export default function Footer() {
 
           {/* Shop links */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-white/50">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-black/50">
               Boutique
             </h3>
             <ul className="mt-5 space-y-3">
@@ -83,7 +83,7 @@ export default function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-white/75 transition hover:text-white"
+                    className="text-sm text-black/75 transition hover:text-black"
                   >
                     {link.label}
                   </Link>
@@ -94,7 +94,7 @@ export default function Footer() {
 
           {/* Help links */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-white/50">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-black/50">
               Aide
             </h3>
             <ul className="mt-5 space-y-3">
@@ -102,7 +102,7 @@ export default function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-white/75 transition hover:text-white"
+                    className="text-sm text-black/75 transition hover:text-black"
                   >
                     {link.label}
                   </Link>
@@ -113,17 +113,17 @@ export default function Footer() {
 
           {/* Contact */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-white/50">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-black/50">
               Contact
             </h3>
-            <ul className="mt-5 space-y-3 text-sm text-white/75">
+            <ul className="mt-5 space-y-3 text-sm text-black/75">
               <li className="flex items-start gap-2">
                 <MapPin size={16} className="mt-0.5 shrink-0" />
                 <span>Tunis, Tunisie</span>
               </li>
               <li className="flex items-center gap-2">
                 <Phone size={16} className="shrink-0" />
-                <a href="tel:+21600000000" className="transition hover:text-white">
+                <a href="tel:+21600000000" className="transition hover:text-black">
                   +216 00 000 000
                 </a>
               </li>
@@ -131,7 +131,7 @@ export default function Footer() {
                 <Mail size={16} className="shrink-0" />
                 <a
                   href="mailto:contact@fairys.tn"
-                  className="transition hover:text-white"
+                  className="transition hover:text-black"
                 >
                   contact@fairys.tn
                 </a>
@@ -141,14 +141,14 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 text-xs text-white/50 md:flex-row">
+        <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-black/10 pt-6 text-xs text-black/50 md:flex-row">
           <p>© {new Date().getFullYear()} Fairy&apos;s Parapharmacie. Tous droits réservés.</p>
           <div className="flex gap-6">
             {legalLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="transition hover:text-white"
+                className="transition hover:text-black"
               >
                 {link.label}
               </Link>

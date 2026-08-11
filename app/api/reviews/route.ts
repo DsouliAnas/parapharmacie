@@ -2,9 +2,9 @@ import {NextRequest} from "next/server";
 
 import {getServerSession} from "next-auth";
 
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
 import connectDB from "@/lib/mongodb";
+import { authOptions } from "@/lib/auth";
 
 import Review from "@/models/Review";
 
@@ -100,31 +100,19 @@ request:NextRequest
 ){
 
 
-try{
+try {
+  const session = await getServerSession(authOptions);
 
-
-const session =
-await getServerSession(authOptions);
-
-
-
-if(!session?.user?.id){
-
-
-return Response.json(
-
-{
-error:"Vous devez être connecté"
-},
-
-{
-status:401
-}
-
-);
-
-
-}
+  if (!session?.user?.id) {
+    return Response.json(
+      {
+        error: "Vous devez être connecté",
+      },
+      {
+        status: 401,
+      }
+    );
+  }
 
 
 

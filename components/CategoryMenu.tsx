@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import Link from "next/link";
 import { categories } from "@/constants/categories";
 
 interface Subcategory {
@@ -11,35 +11,56 @@ interface Subcategory {
   category: {
     _id: string;
     name: string;
+    slug?: string;
   };
 }
 
 interface CategoryFromAPI {
   _id: string;
   name: string;
+  slug: string;
   image?: string;
 }
 
-export default function CategoryMenu() {
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+const staticCategorySlugs = new Set([
+  "promo",
+  "offers",
+]);
 
-  const [subcategories, setSubcategories] = useState<
-    Record<string, Subcategory[]>
-  >({});
+export default function CategoryMenu() {
+  const [activeCategory, setActiveCategory] =
+    useState<string | null>(null);
+
+  const [subcategories, setSubcategories] =
+    useState<Record<string, Subcategory[]>>({});
 
   const [loading, setLoading] = useState(false);
 
-  async function loadSubcategories(categorySlug: string) {
-    // Already loaded
-    if (subcategories[categorySlug]) {
+  async function loadSubcategories(
+    categorySlug: string
+  ): Promise<void> {
+    // Promo and Offers don't use MongoDB subcategories.
+    if (staticCategorySlugs.has(categorySlug)) {
+      return;
+    }
+
+    // Don't fetch again if already loaded.
+    if (
+      Object.prototype.hasOwnProperty.call(
+        subcategories,
+        categorySlug
+      )
+    ) {
       return;
     }
 
     setLoading(true);
 
     try {
-      // Get all categories from MongoDB
-      const categoryResponse = await fetch("/api/categories");
+      // Get all categories from MongoDB.
+      const categoryResponse = await fetch(
+        "/api/categories"
+      );
 
       if (!categoryResponse.ok) {
         return;
@@ -48,12 +69,9 @@ export default function CategoryMenu() {
       const categoryData: CategoryFromAPI[] =
         await categoryResponse.json();
 
-      // Find the MongoDB category matching the navbar slug
+      // Find the MongoDB category using its slug.
       const category = categoryData.find(
-        (item) =>
-          item.name
-            .toLowerCase()
-            .replace(/\s+/g, "-") === categorySlug
+        (item) => item.slug === categorySlug
       );
 
       if (!category) {
@@ -65,7 +83,7 @@ export default function CategoryMenu() {
         return;
       }
 
-      // Get subcategories for this category
+      // Get subcategories for this category.
       const response = await fetch(
         `/api/subcategories?category=${category._id}`
       );
@@ -74,11 +92,16 @@ export default function CategoryMenu() {
         return;
       }
 
-      const data: Subcategory[] = await response.json();
+      const data: unknown = await response.json();
+
+      const validSubcategories: Subcategory[] =
+        Array.isArray(data)
+          ? (data as Subcategory[])
+          : [];
 
       setSubcategories((previous) => ({
         ...previous,
-        [categorySlug]: Array.isArray(data) ? data : [],
+        [categorySlug]: validSubcategories,
       }));
     } catch (error) {
       console.error(
@@ -90,26 +113,39 @@ export default function CategoryMenu() {
     }
   }
 
-  function handleMouseEnter(categorySlug: string) {
+  function handleMouseEnter(
+    categorySlug: string
+  ): void {
     setActiveCategory(categorySlug);
 
-    loadSubcategories(categorySlug);
+    void loadSubcategories(categorySlug);
   }
 
-  function handleMouseLeave() {
+  function handleMouseLeave(): void {
     setActiveCategory(null);
   }
 
-  const activeSubcategories = activeCategory
-    ? subcategories[activeCategory] || []
-    : [];
+  const activeSubcategories =
+    activeCategory !== null
+      ? subcategories[activeCategory] ?? []
+      : [];
+
+  const isStaticCategory =
+    activeCategory !== null &&
+    staticCategorySlugs.has(activeCategory);
+
+  const isActiveCategoryLoaded =
+    activeCategory !== null &&
+    Object.prototype.hasOwnProperty.call(
+      subcategories,
+      activeCategory
+    );
 
   return (
     <nav
       className="relative border-t bg-white"
       onMouseLeave={handleMouseLeave}
     >
-      {/* Main categories */}
       <div className="flex gap-6 px-8 py-3 text-sm">
         {categories.map((category) => (
           <div
@@ -117,57 +153,53 @@ export default function CategoryMenu() {
             onMouseEnter={() =>
               handleMouseEnter(category.slug)
             }
+            className={`cursor-default whitespace-nowrap transition ${
+              activeCategory === category.slug
+                ? "text-pink-500"
+                : "text-gray-700 hover:text-pink-500"
+            }`}
           >
-            <Link
-              href={`/shop/${category.slug}`}
-              className={`whitespace-nowrap transition ${
-                activeCategory === category.slug
-                  ? "text-pink-500"
-                  : "hover:text-pink-500"
-              }`}
-            >
-              {category.name}
-            </Link>
+            {category.name}
           </div>
         ))}
       </div>
 
-      {/* Dropdown */}
-      {activeCategory && (
-        <div
-          className="absolute left-0 top-full z-50 w-full border-t bg-white shadow-lg"
-          onMouseEnter={() =>
-            setActiveCategory(activeCategory)
-          }
-        >
-          <div className="mx-auto max-w-6xl px-8 py-6">
-            {loading &&
-            !subcategories[activeCategory] ? (
-              <div className="py-4 text-sm text-gray-500">
-                Chargement...
-              </div>
-            ) : activeSubcategories.length === 0 ? (
-              <div className="py-4 text-sm text-gray-500">
-                Aucune sous-catégorie disponible.
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-x-10 gap-y-4">
-                {activeSubcategories.map(
-                  (subcategory) => (
-                    <Link
-                      key={subcategory._id}
-                      href={`/shop/${activeCategory}/${subcategory.slug}`}
-                      className="rounded-lg px-3 py-2 text-gray-700 transition hover:bg-gray-50 hover:text-pink-500"
-                    >
-                      {subcategory.name}
-                    </Link>
-                  )
-                )}
-              </div>
-            )}
+      {activeCategory !== null &&
+        !isStaticCategory && (
+          <div
+            className="absolute left-0 top-full z-50 w-full border-t bg-white shadow-lg"
+            onMouseEnter={() =>
+              setActiveCategory(activeCategory)
+            }
+          >
+            <div className="mx-auto max-w-6xl px-8 py-6">
+              {loading &&
+              !isActiveCategoryLoaded ? (
+                <div className="py-4 text-sm text-gray-500">
+                  Chargement...
+                </div>
+              ) : activeSubcategories.length === 0 ? (
+                <div className="py-4 text-sm text-gray-500">
+                  Aucune sous-catégorie disponible.
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-x-10 gap-y-4">
+                  {activeSubcategories.map(
+                    (subcategory) => (
+                      <Link
+                        key={subcategory._id}
+                        href={`/shop/${activeCategory}/${subcategory.slug}`}
+                        className="rounded-lg px-3 py-2 text-gray-700 transition hover:bg-gray-50 hover:text-pink-500"
+                      >
+                        {subcategory.name}
+                      </Link>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </nav>
   );
 }

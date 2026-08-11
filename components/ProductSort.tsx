@@ -1,44 +1,65 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import {
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 
 export default function ProductSort() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const currentSort = searchParams.get("sort") || "newest";
+  const currentSort =
+    searchParams.get("sort") || "newest";
 
-  function handleSort(value: string) {
-    const params = new URLSearchParams(searchParams.toString());
+  function handleSortChange(
+    event: React.ChangeEvent<HTMLSelectElement>
+  ) {
+    const sort = event.target.value;
 
-    if (value === "newest") {
-      params.delete("sort");
+    const params = new URLSearchParams(
+      searchParams.toString()
+    );
+
+    if (sort) {
+      params.set("sort", sort);
     } else {
-      params.set("sort", value);
+      params.delete("sort");
     }
 
-    router.push(`?${params.toString()}`);
+    router.push(`/shop?${params.toString()}`);
   }
 
   return (
     <div className="flex items-center gap-3">
       <label
         htmlFor="product-sort"
-        className="text-sm font-medium text-gray-600"
+        className="text-sm text-gray-500"
       >
-        Trier par :
+        Trier par
       </label>
 
       <select
         id="product-sort"
         value={currentSort}
-        onChange={(event) => handleSort(event.target.value)}
-        className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm outline-none transition focus:border-[#7C8B73]"
+        onChange={handleSortChange}
+        className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 outline-none transition focus:border-[#7C8B73]"
       >
-        <option value="newest">Nouveautés</option>
-        <option value="price-asc">Prix croissant</option>
-        <option value="price-desc">Prix décroissant</option>
-        <option value="name">Nom</option>
+        <option value="newest">
+          Nouveautés
+        </option>
+
+        <option value="price-asc">
+          Prix croissant
+        </option>
+
+        <option value="price-desc">
+          Prix décroissant
+        </option>
+
+        <option value="name">
+          Nom A-Z
+        </option>
       </select>
     </div>
   );

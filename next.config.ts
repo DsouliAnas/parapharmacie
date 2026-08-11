@@ -5,11 +5,15 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "res.cloudinary.com",
+      },
+      {
+        protocol: "https",
         hostname: "pharma-shop.tn",
       },
       {
         protocol: "https",
-        hostname: "via.placeholder.com",
+        hostname: "www.maparatunisie.tn",
       },
     ],
   },

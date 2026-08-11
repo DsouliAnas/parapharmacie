@@ -1,204 +1,332 @@
 "use client";
 
-
-import {useCart} from "@/components/CartProvider";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-
+import { Heart, ShoppingCart } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useCart } from "@/components/CartProvider";
 
 interface ProductCardProps {
-
-_id:string;
-
-name:string;
-
-price:number;
-
-image:string;
-
-stock:boolean;
-
+  _id: string;
+  name: string;
+  price: number;
+  discountPrice?: number;
+  image: string;
+  stock: number;
+  brand?: string;
 }
 
-
+interface WishlistItem {
+  _id: string;
+  product?: {
+    _id: string;
+  };
+}
 
 export default function ProductCard({
+  _id,
+  name,
+  price,
+  discountPrice,
+  image,
+  stock,
+  brand,
+}: ProductCardProps) {
+  const { addToCart } = useCart();
+  const { data: session } = useSession();
 
-_id,
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [wishlistId, setWishlistId] = useState<string | null>(null);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [cartMessage, setCartMessage] = useState(false);
 
-name,
+  const isInStock = stock > 0;
+  const hasDiscount =
+    discountPrice !== undefined && discountPrice < price;
 
-price,
+  /*
+   * Check wishlist status.
+   *
+   * All state updates happen inside the asynchronous
+   * operation rather than directly inside the effect body.
+   */
+  useEffect(() => {
+    let cancelled = false;
 
-image,
+    async function checkWishlist() {
+      if (!session?.user?.id) {
+        return;
+      }
 
-stock
+      try {
+        const response = await fetch("/api/wishlist", {
+          cache: "no-store",
+        });
 
-}:ProductCardProps){
+        if (!response.ok) {
+          return;
+        }
 
+        const wishlist: unknown = await response.json();
 
+        if (!Array.isArray(wishlist)) {
+          return;
+        }
 
-const {addToCart}=useCart();
+        const items = wishlist as WishlistItem[];
 
+        const existingItem = items.find(
+          (item) => item.product?._id === _id
+        );
 
+        if (cancelled) {
+          return;
+        }
 
+        if (existingItem) {
+          setIsWishlisted(true);
+          setWishlistId(existingItem._id);
+        } else {
+          setIsWishlisted(false);
+          setWishlistId(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("CHECK WISHLIST ERROR:", error);
+        }
+      }
+    }
 
-function handleAdd(){
+    void checkWishlist();
 
-console.log("ADDING TO CART:", {
-_id,
-name,
-price,
-image
-});
+    return () => {
+      cancelled = true;
+    };
+  }, [_id, session?.user?.id]);
 
+  /*
+   * Add / remove wishlist.
+   */
+  async function handleWishlist(
+    event: React.MouseEvent<HTMLButtonElement>
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
 
-addToCart({
+    if (!session?.user?.id) {
+      window.location.href = "/login";
+      return;
+    }
 
-_id,
-name,
-price,
-image,
-quantity:1
+    if (wishlistLoading) {
+      return;
+    }
 
-});
+    setWishlistLoading(true);
 
+    try {
+      /*
+       * Remove from wishlist
+       */
+      if (isWishlisted && wishlistId) {
+        const response = await fetch(
+          `/api/wishlist/${wishlistId}`,
+          {
+            method: "DELETE",
+          }
+        );
 
-}
+        if (!response.ok) {
+          return;
+        }
 
+        setIsWishlisted(false);
+        setWishlistId(null);
 
+        return;
+      }
 
+      /*
+       * Add to wishlist
+       */
+      const response = await fetch("/api/wishlist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          product: _id,
+        }),
+      });
 
+      if (!response.ok) {
+        return;
+      }
 
-return (
+      const wishlistItem: unknown = await response.json();
 
-<div className="
-border
-rounded-2xl
-p-4
-bg-white
-shadow-sm
-hover:shadow-md
-transition
-">
+      if (
+        typeof wishlistItem === "object" &&
+        wishlistItem !== null &&
+        "_id" in wishlistItem &&
+        typeof wishlistItem._id === "string"
+      ) {
+        setIsWishlisted(true);
+        setWishlistId(wishlistItem._id);
+      }
+    } catch (error) {
+      console.error("WISHLIST ERROR:", error);
+    } finally {
+      setWishlistLoading(false);
+    }
+  }
 
-<Link href={`/products/${_id}`}>
+  /*
+   * Add product to cart.
+   */
+  function handleAddToCart(
+    event: React.MouseEvent<HTMLButtonElement>
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
 
-  <img
-    src={image}
-    alt={name}
-    className="
-    w-full
-    h-48
-    object-cover
-    rounded-xl
-    cursor-pointer
-    "
-  />
+    if (!isInStock) {
+      return;
+    }
 
-</Link>
+    addToCart({
+      _id,
+      name,
+      price: discountPrice ?? price,
+      image,
+      quantity: 1,
+    });
 
-<Link href={`/products/${_id}`}>
+    setCartMessage(true);
 
-  <h3
-    className="
-    font-semibold
-    mt-4
-    cursor-pointer
-    hover:text-[#7C8B73]
-    "
-  >
-    {name}
-  </h3>
+    setTimeout(() => {
+      setCartMessage(false);
+    }, 2000);
+  }
 
-</Link>
+  return (
+    <div className="overflow-hidden rounded-2xl bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg">
+      {/* Product link */}
+      <Link href={`/products/${_id}`} className="group block">
+        {/* Image */}
+        <div className="relative h-64 overflow-hidden bg-gray-100">
+          {image ? (
+            <img
+              src={image}
+              alt={name}
+              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-gray-400">
+              Pas d&apos;image
+            </div>
+          )}
 
+          {/* Discount badge */}
+          {hasDiscount && (
+            <span className="absolute left-3 top-3 rounded-full bg-red-500 px-3 py-1 text-xs font-semibold text-white">
+              Promo
+            </span>
+          )}
 
+          {/* Wishlist */}
+          <button
+            type="button"
+            onClick={handleWishlist}
+            disabled={wishlistLoading}
+            aria-label={
+              isWishlisted
+                ? "Retirer de la wishlist"
+                : "Ajouter à la wishlist"
+            }
+            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Heart
+              size={20}
+              className={
+                isWishlisted
+                  ? "fill-red-500 text-red-500"
+                  : "text-gray-600"
+              }
+            />
+          </button>
+        </div>
 
+        {/* Product information */}
+        <div className="p-5">
+          {/* Brand */}
+          {brand && (
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-400">
+              {brand}
+            </p>
+          )}
 
-<p className="
-text-[#7C8B73]
-font-bold
-mt-2
-">
+          {/* Name */}
+          <h2 className="line-clamp-2 min-h-[48px] font-semibold text-gray-900">
+            {name}
+          </h2>
 
-{price} TND
+          {/* Price */}
+          <div className="mt-3">
+            {hasDiscount ? (
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold text-[#7C8B73]">
+                  {discountPrice} TND
+                </span>
 
-</p>
+                <span className="text-sm text-gray-400 line-through">
+                  {price} TND
+                </span>
+              </div>
+            ) : (
+              <span className="text-lg font-bold text-[#7C8B73]">
+                {price} TND
+              </span>
+            )}
+          </div>
 
+          {/* Stock */}
+          <div className="mt-2">
+            {isInStock ? (
+              <span className="text-xs text-green-600">
+                En stock
+              </span>
+            ) : (
+              <span className="text-xs text-red-500">
+                Rupture de stock
+              </span>
+            )}
+          </div>
+        </div>
+      </Link>
 
+      {/* Add to cart */}
+      <div className="px-5 pb-5">
+        <button
+          type="button"
+          disabled={!isInStock}
+          onClick={handleAddToCart}
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-[#7C8B73] px-5 py-3 font-semibold text-white transition hover:bg-[#66745F] disabled:cursor-not-allowed disabled:bg-gray-300"
+        >
+          <ShoppingCart size={18} />
 
+          {isInStock
+            ? "Ajouter au panier"
+            : "Rupture de stock"}
+        </button>
 
-<p
-className={
-stock
-?
-"text-green-600"
-:
-"text-red-500"
-}
->
-
-{
-stock
-?
-"En stock"
-:
-"Rupture de stock"
-}
-
-</p>
-
-<Link
-  href={`/products/${_id}`}
-  className="
-  block
-  mt-4
-  text-center
-  border
-  border-[#7C8B73]
-  text-[#7C8B73]
-  font-semibold
-  py-3
-  rounded-full
-  "
->
-  Voir le produit
-</Link>
-
-
-<button
-
-disabled={!stock}
-
-onClick={handleAdd}
-
-className="
-mt-4
-w-full
-bg-[#7C8B73]
-text-white
-font-semibold
-py-3
-px-6
-rounded-full
-cursor-pointer
-hover:bg-[#66745F]
-transition
-duration-300
-disabled:bg-gray-300
-disabled:cursor-not-allowed
-"
-
->
-
-Ajouter au panier
-
-</button>
-
-
-
-</div>
-
-)
-
+        {/* Cart confirmation */}
+        {cartMessage && (
+          <p className="mt-2 text-center text-xs font-medium text-green-600">
+            Produit ajouté au panier ✓
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }

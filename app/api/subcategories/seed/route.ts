@@ -29,6 +29,9 @@ const subcategoryData: Record<string, string[]> = {
     "Déodorants",
     "Soins des mains",
     "Soins des pieds",
+    "Gommages corps",
+    "Huiles corps",
+    "Crèmes mains",
   ],
 
   Bébé: [
@@ -37,6 +40,9 @@ const subcategoryData: Record<string, string[]> = {
     "Shampooings bébé",
     "Laits bébé",
     "Couches & change",
+    "Lingettes",
+    "Crèmes pour le change",
+    "Soins cheveux bébé",
   ],
 
   "Compléments alimentaires": [
@@ -46,6 +52,9 @@ const subcategoryData: Record<string, string[]> = {
     "Énergie",
     "Digestion",
     "Cheveux & ongles",
+    "Sommeil",
+    "Articulations",
+    "Probiotiques",
   ],
 
   Solaire: [
@@ -53,6 +62,7 @@ const subcategoryData: Record<string, string[]> = {
     "Protection solaire corps",
     "Après-soleil",
     "Autobronzants",
+    "Protection solaire enfant",
   ],
 
   Hygiène: [
@@ -60,6 +70,8 @@ const subcategoryData: Record<string, string[]> = {
     "Hygiène intime",
     "Mouchoirs",
     "Désinfection",
+    "Lavage des mains",
+    "Coton & accessoires",
   ],
 
   "Matériel médical": [
@@ -68,6 +80,8 @@ const subcategoryData: Record<string, string[]> = {
     "Pansements",
     "Bandages",
     "Accessoires médicaux",
+    "Orthopédie",
+    "Matériel de soins",
   ],
 
   Homme: [
@@ -76,6 +90,8 @@ const subcategoryData: Record<string, string[]> = {
     "Soins barbe",
     "Déodorants homme",
     "Soins corps homme",
+    "Shampoings homme",
+    "Parfums homme",
   ],
 
   Femme: [
@@ -84,8 +100,20 @@ const subcategoryData: Record<string, string[]> = {
     "Soins corps femme",
     "Déodorants femme",
     "Soins capillaires femme",
+    "Maternité",
+    "Parfums femme",
   ],
 };
+
+function createSlug(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
 export async function POST() {
   try {
@@ -116,18 +144,12 @@ export async function POST() {
       }
 
       for (const name of subcategories) {
-        const slug = name
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/&/g, "and")
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, "");
+        const slug = createSlug(name);
 
         const exists =
           await Subcategory.findOne({
-            name,
             category: category._id,
+            slug,
           });
 
         if (exists) {
@@ -139,6 +161,7 @@ export async function POST() {
           name,
           slug,
           category: category._id,
+          image: "",
         });
 
         created++;
@@ -146,7 +169,8 @@ export async function POST() {
     }
 
     return Response.json({
-      message: "Subcategories seeded successfully",
+      message:
+        "Subcategories seeded successfully",
       created,
       skipped,
     });
