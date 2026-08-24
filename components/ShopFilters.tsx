@@ -5,7 +5,10 @@ import {
   useSearchParams,
 } from "next/navigation";
 import { useState } from "react";
-import { SlidersHorizontal, X } from "lucide-react";
+import {
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 
 interface Category {
   _id: string;
@@ -56,11 +59,10 @@ export default function ShopFilters({
   function updateFilter(
     type: "category" | "brand",
     value: string
-  ) {
-    const params =
-      new URLSearchParams(
-        searchParams.toString()
-      );
+  ): void {
+    const params = new URLSearchParams(
+      searchParams.toString()
+    );
 
     if (value) {
       params.set(type, value);
@@ -75,11 +77,10 @@ export default function ShopFilters({
     );
   }
 
-  function updatePriceFilter() {
-    const params =
-      new URLSearchParams(
-        searchParams.toString()
-      );
+  function updatePriceFilter(): void {
+    const params = new URLSearchParams(
+      searchParams.toString()
+    );
 
     if (minPrice.trim()) {
       params.set(
@@ -108,11 +109,10 @@ export default function ShopFilters({
     setMobileOpen(false);
   }
 
-  function toggleStockFilter() {
-    const params =
-      new URLSearchParams(
-        searchParams.toString()
-      );
+  function toggleStockFilter(): void {
+    const params = new URLSearchParams(
+      searchParams.toString()
+    );
 
     if (currentInStock) {
       params.delete("inStock");
@@ -127,7 +127,7 @@ export default function ShopFilters({
     );
   }
 
-  function clearFilters() {
+  function clearFilters(): void {
     const params = new URLSearchParams();
 
     const search =
@@ -162,6 +162,21 @@ export default function ShopFilters({
       currentMaxPrice ||
       currentInStock
   );
+
+  const filterContentProps: FilterContentProps = {
+    categories,
+    brands,
+    currentCategory,
+    currentBrand,
+    currentInStock,
+    minPrice,
+    maxPrice,
+    setMinPrice,
+    setMaxPrice,
+    updateFilter,
+    updatePriceFilter,
+    toggleStockFilter,
+  };
 
   return (
     <>
@@ -228,30 +243,7 @@ export default function ShopFilters({
             </div>
 
             <FilterContent
-              categories={categories}
-              brands={brands}
-              currentCategory={
-                currentCategory
-              }
-              currentBrand={currentBrand}
-              currentInStock={
-                currentInStock
-              }
-              minPrice={minPrice}
-              maxPrice={maxPrice}
-              hasFilters={hasFilters}
-              setMinPrice={setMinPrice}
-              setMaxPrice={setMaxPrice}
-              updateFilter={updateFilter}
-              updatePriceFilter={
-                updatePriceFilter
-              }
-              toggleStockFilter={
-                toggleStockFilter
-              }
-              clearFilters={
-                clearFilters
-              }
+              {...filterContentProps}
             />
           </aside>
         </div>
@@ -268,9 +260,7 @@ export default function ShopFilters({
             {hasFilters && (
               <button
                 type="button"
-                onClick={
-                  clearFilters
-                }
+                onClick={clearFilters}
                 className="text-xs font-medium text-[#7C8B73] hover:underline"
               >
                 Effacer
@@ -279,30 +269,7 @@ export default function ShopFilters({
           </div>
 
           <FilterContent
-            categories={categories}
-            brands={brands}
-            currentCategory={
-              currentCategory
-            }
-            currentBrand={currentBrand}
-            currentInStock={
-              currentInStock
-            }
-            minPrice={minPrice}
-            maxPrice={maxPrice}
-            hasFilters={hasFilters}
-            setMinPrice={setMinPrice}
-            setMaxPrice={setMaxPrice}
-            updateFilter={updateFilter}
-            updatePriceFilter={
-              updatePriceFilter
-            }
-            toggleStockFilter={
-              toggleStockFilter
-            }
-            clearFilters={
-              clearFilters
-            }
+            {...filterContentProps}
           />
         </div>
       </aside>
@@ -318,20 +285,14 @@ interface FilterContentProps {
   currentInStock: boolean;
   minPrice: string;
   maxPrice: string;
-  hasFilters: boolean;
-  setMinPrice: (
-    value: string
-  ) => void;
-  setMaxPrice: (
-    value: string
-  ) => void;
+  setMinPrice: (value: string) => void;
+  setMaxPrice: (value: string) => void;
   updateFilter: (
     type: "category" | "brand",
     value: string
   ) => void;
   updatePriceFilter: () => void;
   toggleStockFilter: () => void;
-  clearFilters: () => void;
 }
 
 function FilterContent({
@@ -347,7 +308,7 @@ function FilterContent({
   updateFilter,
   updatePriceFilter,
   toggleStockFilter,
-}: FilterContentProps) {
+}: FilterContentProps): React.ReactElement {
   return (
     <>
       {/* Categories */}
@@ -371,9 +332,7 @@ function FilterContent({
                   <input
                     type="radio"
                     name="category"
-                    value={
-                      category._id
-                    }
+                    value={category._id}
                     checked={
                       currentCategory ===
                       category._id
@@ -476,9 +435,7 @@ function FilterContent({
 
         <button
           type="button"
-          onClick={
-            updatePriceFilter
-          }
+          onClick={updatePriceFilter}
           className="mt-3 w-full rounded-lg bg-[#7C8B73] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#66745F]"
         >
           Appliquer
@@ -494,12 +451,8 @@ function FilterContent({
         <label className="flex cursor-pointer items-center gap-3 text-sm text-gray-600">
           <input
             type="checkbox"
-            checked={
-              currentInStock
-            }
-            onChange={
-              toggleStockFilter
-            }
+            checked={currentInStock}
+            onChange={toggleStockFilter}
             className="h-4 w-4 rounded accent-[#7C8B73]"
           />
 

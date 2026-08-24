@@ -1,7 +1,10 @@
 import { NextRequest } from "next/server";
+import { getServerSession } from "next-auth";
 import mongoose from "mongoose";
 
 import connectDB from "@/lib/mongodb";
+import { authOptions } from "@/lib/auth";
+
 import Subcategory from "@/models/Subcategory";
 import "@/models/Category";
 
@@ -28,17 +31,26 @@ function createSlug(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-// GET ONE SUBCATEGORY
+/*
+|--------------------------------------------------------------------------
+| GET ONE SUBCATEGORY
+|--------------------------------------------------------------------------
+| Public
+*/
+
 export async function GET(
   request: Request,
   context: RouteContext
-) {
+): Promise<Response> {
   try {
     await connectDB();
 
-    const { id } = await context.params;
+    const { id } =
+      await context.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (
+      !mongoose.Types.ObjectId.isValid(id)
+    ) {
       return Response.json(
         {
           error: "Invalid subcategory ID",
@@ -92,17 +104,59 @@ export async function GET(
   }
 }
 
-// UPDATE SUBCATEGORY
+/*
+|--------------------------------------------------------------------------
+| UPDATE SUBCATEGORY
+|--------------------------------------------------------------------------
+| Admin only
+*/
+
 export async function PUT(
   request: NextRequest,
   context: RouteContext
-) {
+): Promise<Response> {
   try {
+    /*
+     * AUTHENTICATION
+     */
+
+    const session =
+      await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return Response.json(
+        {
+          error: "Not authenticated.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    /*
+     * AUTHORIZATION
+     */
+
+    if (session.user.role !== "admin") {
+      return Response.json(
+        {
+          error: "Admin access required.",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
     await connectDB();
 
-    const { id } = await context.params;
+    const { id } =
+      await context.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (
+      !mongoose.Types.ObjectId.isValid(id)
+    ) {
       return Response.json(
         {
           error: "Invalid subcategory ID",
@@ -130,7 +184,8 @@ export async function PUT(
 
     if (
       typeof body !== "object" ||
-      body === null
+      body === null ||
+      Array.isArray(body)
     ) {
       return Response.json(
         {
@@ -151,6 +206,10 @@ export async function PUT(
       category?: mongoose.Types.ObjectId;
       image?: string;
     } = {};
+
+    /*
+     * NAME
+     */
 
     if (data.name !== undefined) {
       if (
@@ -191,6 +250,10 @@ export async function PUT(
       }
     }
 
+    /*
+     * SLUG
+     */
+
     if (data.slug !== undefined) {
       if (
         typeof data.slug !== "string"
@@ -224,6 +287,10 @@ export async function PUT(
 
       update.slug = slug;
     }
+
+    /*
+     * CATEGORY
+     */
 
     if (data.category !== undefined) {
       if (
@@ -266,6 +333,10 @@ export async function PUT(
         );
     }
 
+    /*
+     * IMAGE
+     */
+
     if (data.image !== undefined) {
       if (
         typeof data.image !== "string"
@@ -281,9 +352,27 @@ export async function PUT(
         );
       }
 
-      update.image =
+      const image =
         data.image.trim();
+
+      if (image.length > 2000) {
+        return Response.json(
+          {
+            error:
+              "Image URL is too long.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
+      update.image = image;
     }
+
+    /*
+     * NO FIELDS
+     */
 
     if (
       Object.keys(update).length === 0
@@ -298,6 +387,10 @@ export async function PUT(
         }
       );
     }
+
+    /*
+     * UPDATE
+     */
 
     try {
       const subcategory =
@@ -334,22 +427,20 @@ export async function PUT(
       );
     } catch (error) {
       if (
-        error instanceof mongoose.Error
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === 11000
       ) {
-        if (
-          "code" in error &&
-          error.code === 11000
-        ) {
-          return Response.json(
-            {
-              error:
-                "This subcategory already exists in this category",
-            },
-            {
-              status: 409,
-            }
-          );
-        }
+        return Response.json(
+          {
+            error:
+              "This subcategory already exists in this category",
+          },
+          {
+            status: 409,
+          }
+        );
       }
 
       throw error;
@@ -372,17 +463,59 @@ export async function PUT(
   }
 }
 
-// DELETE SUBCATEGORY
+/*
+|--------------------------------------------------------------------------
+| DELETE SUBCATEGORY
+|--------------------------------------------------------------------------
+| Admin only
+*/
+
 export async function DELETE(
   request: Request,
   context: RouteContext
-) {
+): Promise<Response> {
   try {
+    /*
+     * AUTHENTICATION
+     */
+
+    const session =
+      await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return Response.json(
+        {
+          error: "Not authenticated.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    /*
+     * AUTHORIZATION
+     */
+
+    if (session.user.role !== "admin") {
+      return Response.json(
+        {
+          error: "Admin access required.",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
     await connectDB();
 
-    const { id } = await context.params;
+    const { id } =
+      await context.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (
+      !mongoose.Types.ObjectId.isValid(id)
+    ) {
       return Response.json(
         {
           error: "Invalid subcategory ID",

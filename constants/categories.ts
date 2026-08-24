@@ -1,4 +1,9 @@
-export const categories = [
+export interface CategorySeed {
+  name: string;
+  slug: string;
+}
+
+export const categories: CategorySeed[] = [
   {
     name: "Fairy's Promo",
     slug: "promo",

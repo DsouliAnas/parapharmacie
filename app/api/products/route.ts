@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 
 import connectDB from "@/lib/mongodb";
 import Product from "@/models/Product";
+
 import "@/models/Category";
 import "@/models/Brand";
 import "@/models/Subcategory";
@@ -12,6 +13,8 @@ import { authOptions } from "@/lib/auth";
 interface ProductCreateBody {
   name: string;
   description: string;
+  benefits?: string[];
+  usage?: string[];
   price: number;
   discountPrice?: number;
   images: string[];
@@ -33,23 +36,30 @@ interface ProductFilter {
     $gte?: number;
     $lte?: number;
   };
-  $or?: Array<
-    | {
-        name: {
-          $regex: string;
-          $options: string;
-        };
-      }
-    | {
-        brand: {
-          $in: string[];
-        };
-      }
-  >;
+  $or?: Array<{
+    name?: {
+      $regex: string;
+      $options: string;
+    };
+    description?: {
+      $regex: string;
+      $options: string;
+    };
+    brand?: {
+      $in: string[];
+    };
+    category?: {
+      $in: string[];
+    };
+    subcategory?: {
+      $in: string[];
+    };
+  }>;
 }
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session =
+    await getServerSession(authOptions);
 
   if (!session?.user?.id) {
     return {
@@ -72,53 +82,100 @@ async function requireAdmin() {
   };
 }
 
-// GET PRODUCTS
-// Public: customers need access to products.
-export async function GET(request: NextRequest) {
+/*
+|--------------------------------------------------------------------------
+| GET PRODUCTS
+|--------------------------------------------------------------------------
+| Public
+|--------------------------------------------------------------------------
+*/
+
+export async function GET(
+  request: NextRequest
+) {
   try {
     await connectDB();
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } =
+      new URL(request.url);
 
-    const category = searchParams.get("category");
-    const subcategory = searchParams.get("subcategory");
-    const brand = searchParams.get("brand");
-    const sort = searchParams.get("sort") || "newest";
-    const search = searchParams.get("search");
+    const category =
+      searchParams.get("category") || "";
 
-    const minPriceValue = searchParams.get("minPrice");
-    const maxPriceValue = searchParams.get("maxPrice");
-    const inStock = searchParams.get("inStock");
+    const subcategory =
+      searchParams.get("subcategory") || "";
+
+    const brand =
+      searchParams.get("brand") || "";
+
+    const sort =
+      searchParams.get("sort") || "newest";
+
+    const search =
+      searchParams.get("search")?.trim() || "";
+
+    const minPriceValue =
+      searchParams.get("minPrice");
+
+    const maxPriceValue =
+      searchParams.get("maxPrice");
+
+    const inStock =
+      searchParams.get("inStock");
 
     const filter: ProductFilter = {};
 
-    // Category filter
+    /*
+    |--------------------------------------------------------------------------
+    | CATEGORY
+    |--------------------------------------------------------------------------
+    */
+
     if (category) {
       filter.category = category;
     }
 
-    // Subcategory filter
+    /*
+    |--------------------------------------------------------------------------
+    | SUBCATEGORY
+    |--------------------------------------------------------------------------
+    */
+
     if (subcategory) {
       filter.subcategory = subcategory;
     }
 
-    // Brand filter
+    /*
+    |--------------------------------------------------------------------------
+    | BRAND
+    |--------------------------------------------------------------------------
+    */
+
     if (brand) {
       filter.brand = brand;
     }
 
-    // Price filter
-    const minPrice = minPriceValue
-      ? Number(minPriceValue)
-      : undefined;
+    /*
+    |--------------------------------------------------------------------------
+    | PRICE
+    |--------------------------------------------------------------------------
+    */
 
-    const maxPrice = maxPriceValue
-      ? Number(maxPriceValue)
-      : undefined;
+    const minPrice =
+      minPriceValue
+        ? Number(minPriceValue)
+        : undefined;
+
+    const maxPrice =
+      maxPriceValue
+        ? Number(maxPriceValue)
+        : undefined;
 
     if (
-      (minPrice !== undefined && Number.isNaN(minPrice)) ||
-      (maxPrice !== undefined && Number.isNaN(maxPrice))
+      (minPrice !== undefined &&
+        Number.isNaN(minPrice)) ||
+      (maxPrice !== undefined &&
+        Number.isNaN(maxPrice))
     ) {
       return Response.json(
         {
@@ -130,7 +187,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (minPrice !== undefined || maxPrice !== undefined) {
+    if (
+      minPrice !== undefined ||
+      maxPrice !== undefined
+    ) {
       filter.price = {};
 
       if (minPrice !== undefined) {
@@ -142,92 +202,218 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Stock filter
+    /*
+    |--------------------------------------------------------------------------
+    | STOCK
+    |--------------------------------------------------------------------------
+    */
+
     if (inStock === "true") {
       filter.stock = {
         $gt: 0,
       };
     }
 
-    // Search by product name OR brand name
-    if (search && search.trim() !== "") {
-      const searchValue = search.trim();
+    /*
+    |--------------------------------------------------------------------------
+    | SEARCH
+    |--------------------------------------------------------------------------
+    |
+    | Search in:
+    | - product name
+    | - product description
+    | - brand name
+    | - category name
+    | - subcategory name
+    |
+    */
 
-      const Brand = (
-        await import("@/models/Brand")
-      ).default;
+    if (search) {
+      const regex = {
+        $regex: search,
+        $options: "i",
+      };
 
-      const brands = await Brand.find({
-        name: {
-          $regex: searchValue,
-          $options: "i",
-        },
-      }).select("_id");
+      const Brand =
+        (await import("@/models/Brand"))
+          .default;
 
-      const brandIds = brands.map((item) =>
-        item._id.toString()
-      );
+      const Category =
+        (await import("@/models/Category"))
+          .default;
 
-      filter.$or = [
+      const Subcategory =
+        (await import("@/models/Subcategory"))
+          .default;
+
+      /*
+      |--------------------------------------------------------------------------
+      | FIND MATCHING BRANDS
+      |--------------------------------------------------------------------------
+      */
+
+      const matchingBrands =
+        await Brand.find({
+          name: regex,
+        }).select("_id");
+
+      const brandIds =
+        matchingBrands.map((item) =>
+          item._id.toString()
+        );
+
+      /*
+      |--------------------------------------------------------------------------
+      | FIND MATCHING CATEGORIES
+      |--------------------------------------------------------------------------
+      */
+
+      const matchingCategories =
+        await Category.find({
+          name: regex,
+        }).select("_id");
+
+      const categoryIds =
+        matchingCategories.map((item) =>
+          item._id.toString()
+        );
+
+      /*
+      |--------------------------------------------------------------------------
+      | FIND MATCHING SUBCATEGORIES
+      |--------------------------------------------------------------------------
+      */
+
+      const matchingSubcategories =
+        await Subcategory.find({
+          name: regex,
+        }).select("_id");
+
+      const subcategoryIds =
+        matchingSubcategories.map((item) =>
+          item._id.toString()
+        );
+
+      /*
+      |--------------------------------------------------------------------------
+      | BUILD SEARCH
+      |--------------------------------------------------------------------------
+      */
+
+      const searchConditions:
+        ProductFilter["$or"] = [
         {
-          name: {
-            $regex: searchValue,
-            $options: "i",
-          },
+          name: regex,
+        },
+        {
+          description: regex,
         },
       ];
 
       if (brandIds.length > 0) {
-        filter.$or.push({
+        searchConditions.push({
           brand: {
             $in: brandIds,
           },
         });
       }
+
+      if (categoryIds.length > 0) {
+        searchConditions.push({
+          category: {
+            $in: categoryIds,
+          },
+        });
+      }
+
+      if (subcategoryIds.length > 0) {
+        searchConditions.push({
+          subcategory: {
+            $in: subcategoryIds,
+          },
+        });
+      }
+
+      filter.$or = searchConditions;
     }
 
-    // Sorting
-    let sortOption: Record<string, 1 | -1> = {
+    /*
+    |--------------------------------------------------------------------------
+    | SORTING
+    |--------------------------------------------------------------------------
+    */
+
+    let sortOption:
+      Record<string, 1 | -1> = {
       createdAt: -1,
     };
 
-    if (sort === "price-asc") {
-      sortOption = {
-        price: 1,
-      };
+    switch (sort) {
+      case "price-asc":
+        sortOption = {
+          price: 1,
+        };
+        break;
+
+      case "price-desc":
+        sortOption = {
+          price: -1,
+        };
+        break;
+
+      case "name":
+        sortOption = {
+          name: 1,
+        };
+        break;
+
+      case "newest":
+      default:
+        sortOption = {
+          createdAt: -1,
+        };
+        break;
     }
 
-    if (sort === "price-desc") {
-      sortOption = {
-        price: -1,
-      };
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | FETCH
+    |--------------------------------------------------------------------------
+    */
 
-    if (sort === "name") {
-      sortOption = {
-        name: 1,
-      };
-    }
+    const products =
+      await Product.find(filter)
+        .populate(
+          "category",
+          "name slug"
+        )
+        .populate(
+          "subcategory",
+          "name slug"
+        )
+        .populate(
+          "brand",
+          "name logo"
+        )
+        .sort(sortOption)
+        .lean();
 
-    if (sort === "newest") {
-      sortOption = {
-        createdAt: -1,
-      };
-    }
-
-    const products = await Product.find(filter)
-      .populate("category")
-      .populate("subcategory")
-      .populate("brand")
-      .sort(sortOption);
-
-    return Response.json(products);
+    return Response.json(
+      products,
+      {
+        status: 200,
+      }
+    );
   } catch (error) {
-    console.error("GET PRODUCTS ERROR:", error);
+    console.error(
+      "GET PRODUCTS ERROR:",
+      error
+    );
 
     return Response.json(
       {
-        error: "Failed to fetch products",
+        error:
+          "Failed to fetch products",
       },
       {
         status: 500,
@@ -236,19 +422,30 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// CREATE PRODUCT
-// Admin only.
-export async function POST(request: NextRequest) {
+/*
+|--------------------------------------------------------------------------
+| CREATE PRODUCT
+|--------------------------------------------------------------------------
+| Admin only
+|--------------------------------------------------------------------------
+*/
+
+export async function POST(
+  request: NextRequest
+) {
   try {
-    const authorization = await requireAdmin();
+    const authorization =
+      await requireAdmin();
 
     if (!authorization.authorized) {
       return Response.json(
         {
-          error: authorization.error,
+          error:
+            authorization.error,
         },
         {
-          status: authorization.status,
+          status:
+            authorization.status,
         }
       );
     }
@@ -266,7 +463,8 @@ export async function POST(request: NextRequest) {
     ) {
       return Response.json(
         {
-          error: "Invalid product data",
+          error:
+            "Invalid product data",
         },
         {
           status: 400,
@@ -275,27 +473,43 @@ export async function POST(request: NextRequest) {
     }
 
     const product = await Product.create({
-      name: body.name,
-      description: body.description,
-      price: body.price,
-      discountPrice: body.discountPrice,
-      images: body.images,
-      category: body.category,
-      subcategory: body.subcategory,
-      brand: body.brand,
-      stock: body.stock ?? 0,
-      isActive: body.isActive ?? true,
-    });
+  name: body.name,
+  description: body.description,
+  benefits: body.benefits ?? [],
+  usage: body.usage ?? [],
+  price: body.price,
+  discountPrice: body.discountPrice,
+  images: body.images,
+  category: body.category,
+  subcategory: body.subcategory,
+  brand: body.brand,
+  stock: body.stock ?? 0,
+  isActive: body.isActive ?? true,
+});
 
     const populatedProduct =
-      await Product.findById(product._id)
-        .populate("category")
-        .populate("subcategory")
-        .populate("brand");
+      await Product.findById(
+        product._id
+      )
+        .populate(
+          "category",
+          "name slug"
+        )
+        .populate(
+          "subcategory",
+          "name slug"
+        )
+        .populate(
+          "brand",
+          "name logo"
+        );
 
-    return Response.json(populatedProduct, {
-      status: 201,
-    });
+    return Response.json(
+      populatedProduct,
+      {
+        status: 201,
+      }
+    );
   } catch (error) {
     console.error(
       "CREATE PRODUCT ERROR:",
@@ -304,7 +518,8 @@ export async function POST(request: NextRequest) {
 
     return Response.json(
       {
-        error: "Failed to create product",
+        error:
+          "Failed to create product",
       },
       {
         status: 500,

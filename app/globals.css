@@ -1,26 +1,205 @@
 @import "tailwindcss";
 
+/* =========================================================
+   TOKENS — identité "apothicaire premium"
+   Papier chaud / vert forêt profond, accent argile + or,
+   typographie éditoriale, dispositif "fiche spécimen".
+========================================================= */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6f3ec;
+  --foreground: #171f1a;
+
+  --paper: #f6f3ec;      /* fond clair principal */
+  --paper-deep: #ede7d9; /* fond clair secondaire, sections alternées */
+  --ink: #171f1a;        /* texte sur fond clair */
+  --forest: #1f3a2e;     /* fond sombre principal (héro, CTA) */
+  --forest-soft: #2c4a3a;/* fond sombre secondaire */
+  --clay: #a6512f;       /* accent "teinture" — promos, tampons */
+  --gold: #c89b4a;       /* accent signature — CTA, liens actifs */
+
+  --line: rgb(23 31 26 / 14%);       /* filet fin sur papier */
+  --line-dark: rgb(246 243 236 / 16%); /* filet fin sur fond sombre */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
+  margin: 0;
   background: var(--background);
   color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
 }
-.input{
-width:100%;
-border:1px solid #ddd;
-padding:12px;
-border-radius:12px;
-margin-bottom:15px;
+
+button,
+a,
+input,
+textarea,
+select {
+  font: inherit;
 }
-.input{
-width:100%;
-border:1px solid #ddd;
-padding:12px;
-border-radius:9999px;
-margin-bottom:15px;
-outline:none;
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+img {
+  max-width: 100%;
+}
+
+/* =========================================
+   REUSABLE INPUT (ledger style — filet, pas de pilule)
+========================================= */
+
+.input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 2px;
+  border-radius: 0;
+  margin-bottom: 15px;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  transition: border-color 0.2s ease;
+}
+
+.input::placeholder {
+  color: #9ca3af;
+}
+
+.input:focus {
+  border-color: var(--clay);
+}
+
+/* =========================================
+   SIGNATURE DEVICE — filet pointillé "fiche" reliant
+   une étiquette à une valeur (ex: Livraison ⋯⋯ 48h)
+========================================= */
+
+.leader {
+  flex: 1 1 auto;
+  min-width: 16px;
+  border-bottom: 1px dotted currentColor;
+  opacity: 0.35;
+  transform: translateY(-5px);
+}
+
+/* Tampon de réduction — cachet rond, bord tireté, légèrement pivoté */
+
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 9999px;
+  border: 1.5px dashed var(--paper);
+  background: var(--clay);
+  color: var(--paper);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transform: rotate(-9deg);
+}
+
+/* =========================================
+   REVEAL — apparition discrète au chargement
+========================================= */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* =========================================
+   BRAND MARQUEE
+========================================= */
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 34s linear infinite;
+}
+
+.pause-on-hover:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+
+  .reveal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* =========================================
+   CUSTOM SCROLLBAR
+========================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--paper-deep);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--forest);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--clay);
+}
+
+/* =========================================
+   SELECTION & FOCUS
+========================================= */
+
+::selection {
+  background: var(--clay);
+  color: var(--paper);
+}
+
+:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 2px;
 }

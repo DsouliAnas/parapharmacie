@@ -1,11 +1,38 @@
 import { NextRequest } from "next/server";
+import { getServerSession } from "next-auth";
 import mongoose from "mongoose";
 
 import connectDB from "@/lib/mongodb";
+import { authOptions } from "@/lib/auth";
 import Subcategory from "@/models/Subcategory";
 import "@/models/Category";
 
-export async function GET(request: NextRequest) {
+interface CreateSubcategoryBody {
+  name?: unknown;
+  category?: unknown;
+  image?: unknown;
+}
+
+function createSlug(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/*
+|--------------------------------------------------------------------------
+| GET ALL SUBCATEGORIES
+|--------------------------------------------------------------------------
+| Public
+*/
+
+export async function GET(
+  request: NextRequest
+): Promise<Response> {
   try {
     await connectDB();
 
@@ -15,21 +42,18 @@ export async function GET(request: NextRequest) {
     const categoryId =
       searchParams.get("category");
 
-    if (categoryId) {
-      if (
-        !mongoose.Types.ObjectId.isValid(
-          categoryId
-        )
-      ) {
-        return Response.json(
-          {
-            error: "Invalid category ID",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
+    if (
+      categoryId &&
+      !mongoose.Types.ObjectId.isValid(categoryId)
+    ) {
+      return Response.json(
+        {
+          error: "Invalid category ID",
+        },
+        {
+          status: 400,
+        }
+      );
     }
 
     const filter: {
@@ -43,7 +67,10 @@ export async function GET(request: NextRequest) {
 
     const subcategories =
       await Subcategory.find(filter)
-        .populate("category", "name slug")
+        .populate(
+          "category",
+          "name slug"
+        )
         .sort({
           name: 1,
         })
@@ -73,23 +100,64 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/*
+|--------------------------------------------------------------------------
+| CREATE SUBCATEGORY
+|--------------------------------------------------------------------------
+| Admin only
+*/
+
 export async function POST(
   request: NextRequest
 ): Promise<Response> {
   try {
-    await connectDB();
+    /*
+     * AUTHENTICATION
+     */
 
-    const body: {
-      name?: string;
-      slug?: string;
-      category?: string;
-      image?: string;
-    } = await request.json();
+    const session =
+      await getServerSession(authOptions);
 
-    if (!body.name || !body.slug || !body.category) {
+    if (!session?.user?.id) {
       return Response.json(
         {
-          error: "Name, slug and category are required",
+          error: "Not authenticated.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    /*
+     * AUTHORIZATION
+     */
+
+    if (session.user.role !== "admin") {
+      return Response.json(
+        {
+          error: "Admin access required.",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
+    await connectDB();
+
+    /*
+     * PARSE BODY
+     */
+
+    let body: unknown;
+
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        {
+          error: "Invalid JSON body",
         },
         {
           status: 400,
@@ -98,11 +166,13 @@ export async function POST(
     }
 
     if (
-      !mongoose.Types.ObjectId.isValid(body.category)
+      typeof body !== "object" ||
+      body === null ||
+      Array.isArray(body)
     ) {
       return Response.json(
         {
-          error: "Invalid category ID",
+          error: "Invalid request body",
         },
         {
           status: 400,
@@ -110,12 +180,179 @@ export async function POST(
       );
     }
 
+    const data =
+      body as CreateSubcategoryBody;
+
+    /*
+     * NAME
+     */
+
+    if (
+      typeof data.name !== "string"
+    ) {
+      return Response.json(
+        {
+          error:
+            "Le nom de la sous-catégorie est obligatoire.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const name = data.name.trim();
+
+    if (
+      name.length < 2 ||
+      name.length > 100
+    ) {
+      return Response.json(
+        {
+          error:
+            "Le nom doit contenir entre 2 et 100 caractères.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    /*
+     * CATEGORY
+     */
+
+    if (
+      typeof data.category !== "string" ||
+      !mongoose.Types.ObjectId.isValid(
+        data.category
+      )
+    ) {
+      return Response.json(
+        {
+          error:
+            "Veuillez sélectionner une catégorie valide.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const categoryId =
+      new mongoose.Types.ObjectId(
+        data.category
+      );
+
+    const categoryExists =
+      await mongoose
+        .model("Category")
+        .exists({
+          _id: categoryId,
+        });
+
+    if (!categoryExists) {
+      return Response.json(
+        {
+          error:
+            "La catégorie sélectionnée n'existe pas.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    /*
+     * SLUG
+     */
+
+    const slug = createSlug(name);
+
+    if (!slug) {
+      return Response.json(
+        {
+          error:
+            "Impossible de créer un slug valide.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    /*
+     * IMAGE
+     */
+
+    let image = "";
+
+    if (
+      data.image !== undefined
+    ) {
+      if (
+        typeof data.image !== "string"
+      ) {
+        return Response.json(
+          {
+            error:
+              "Invalid image value",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
+      image = data.image.trim();
+
+      if (image.length > 2000) {
+        return Response.json(
+          {
+            error:
+              "Image URL is too long.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+    }
+
+    /*
+     * CHECK DUPLICATE
+     */
+
+    const existing =
+      await Subcategory.findOne({
+        category: categoryId,
+        slug,
+      })
+        .select("_id")
+        .lean();
+
+    if (existing) {
+      return Response.json(
+        {
+          error:
+            "Cette sous-catégorie existe déjà dans cette catégorie.",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
+    /*
+     * CREATE
+     */
+
     const subcategory =
       await Subcategory.create({
-        name: body.name,
-        slug: body.slug,
-        category: body.category,
-        image: body.image || "",
+        name,
+        slug,
+        category: categoryId,
+        image,
       });
 
     return Response.json(
@@ -125,31 +362,36 @@ export async function POST(
       }
     );
   } catch (error) {
-  console.error("CREATE SUBCATEGORY ERROR:", error);
+    console.error(
+      "CREATE SUBCATEGORY ERROR:",
+      error
+    );
 
-  if (
-  typeof error === "object" &&
-  error !== null &&
-  "code" in error &&
-  error.code === 11000
-) {
-  return Response.json(
-    {
-      error:
-        "A subcategory with this slug already exists in this category",
-    },
-    {
-      status: 409,
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === 11000
+    ) {
+      return Response.json(
+        {
+          error:
+            "Cette sous-catégorie existe déjà dans cette catégorie.",
+        },
+        {
+          status: 409,
+        }
+      );
     }
-  );
-} 
 
-  return Response.json(
-    {
-      error: "Failed to create subcategory",
-    },
-    {
-      status: 500,
-    }
-  );
-}}
+    return Response.json(
+      {
+        error:
+          "Failed to create subcategory",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}

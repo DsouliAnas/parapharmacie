@@ -5,6 +5,13 @@ import mongoose, {
   type Document,
 } from "mongoose";
 
+export type OrderStatus =
+  | "Pending"
+  | "Processing"
+  | "Shipped"
+  | "Delivered"
+  | "Cancelled";
+
 interface OrderProduct {
   product: mongoose.Types.ObjectId;
   quantity: number;
@@ -13,21 +20,29 @@ interface OrderProduct {
 
 export interface OrderDocument extends Document {
   orderNumber: string;
+
   user: mongoose.Types.ObjectId;
+
   customerName: string;
   customerEmail: string;
+
   phone: string;
   backupPhone?: string;
+
   address: string;
+
   products: OrderProduct[];
+
   totalPrice: number;
+
   paymentMethod: string;
-  status:
-    | "Pending"
-    | "Processing"
-    | "Shipped"
-    | "Delivered"
-    | "Cancelled";
+
+  status: OrderStatus;
+
+  deliveredAt?: Date;
+
+  isRevenueCounted: boolean;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,11 +55,16 @@ const OrderSchema = new Schema<OrderDocument>(
       unique: true,
       index: true,
       default: () => {
-        const timestamp = Date.now().toString(36).toUpperCase();
-        const random = Math.random()
-          .toString(36)
-          .substring(2, 6)
-          .toUpperCase();
+        const timestamp =
+          Date.now()
+            .toString(36)
+            .toUpperCase();
+
+        const random =
+          Math.random()
+            .toString(36)
+            .substring(2, 6)
+            .toUpperCase();
 
         return `FAIRYS-${timestamp}-${random}`;
       },
@@ -132,6 +152,16 @@ const OrderSchema = new Schema<OrderDocument>(
       ],
       default: "Pending",
     },
+
+    deliveredAt: {
+      type: Date,
+      default: undefined,
+    },
+
+    isRevenueCounted: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
@@ -140,6 +170,9 @@ const OrderSchema = new Schema<OrderDocument>(
 
 const Order =
   models.Order ||
-  model<OrderDocument>("Order", OrderSchema);
+  model<OrderDocument>(
+    "Order",
+    OrderSchema
+  );
 
 export default Order;

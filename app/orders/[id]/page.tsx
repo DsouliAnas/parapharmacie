@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-
+import PrintBonButton from "@/components/PrintBonButton";
 import { authOptions } from "@/lib/auth";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
@@ -383,6 +383,10 @@ export default async function OrderDetailsPage({
               >
                 Toutes mes commandes
               </Link>
+
+              <div className="mt-6 block w-full rounded-full border border-[#7C8B73] px-5 py-3 text-center text-sm font-semibold text-[#7C8B73] transition hover:bg-[#7C8B73] hover:text-white">
+                <PrintBonButton order={order} />
+              </div>
             </div>
           </aside>
         </div>

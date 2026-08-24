@@ -28,6 +28,15 @@ interface PasswordForm {
   confirmPassword: string;
 }
 
+interface ApiError {
+  error?: string;
+}
+
+interface ApiSuccess {
+  message?: string;
+  error?: string;
+}
+
 export default function AccountPage() {
   const { data: session, status, update } = useSession();
 
@@ -47,7 +56,7 @@ export default function AccountPage() {
     confirmPassword: "",
   });
 
-  const [loading, setLoading] = useState(true);
+  const [loadingUser, setLoadingUser] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
@@ -57,20 +66,32 @@ export default function AccountPage() {
   const [profileError, setProfileError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
+  /*
+   * Load the authenticated user's profile.
+   *
+   * Important:
+   * We do NOT set loading state synchronously when status changes.
+   * The authentication state itself is already provided by useSession().
+   */
   useEffect(() => {
     if (status !== "authenticated") {
       return;
     }
 
+    let cancelled = false;
+
     async function loadUser() {
+      setLoadingUser(true);
+
       try {
         const response = await fetch("/api/user", {
+          method: "GET",
           cache: "no-store",
+          credentials: "include",
         });
 
-        const data = (await response.json()) as UserProfile | {
-          error?: string;
-        };
+        const data: UserProfile | ApiError =
+          await response.json();
 
         if (!response.ok) {
           throw new Error(
@@ -78,6 +99,10 @@ export default function AccountPage() {
               ? data.error
               : "Impossible de récupérer votre profil."
           );
+        }
+
+        if (cancelled) {
+          return;
         }
 
         const profileData = data as UserProfile;
@@ -92,16 +117,27 @@ export default function AccountPage() {
           postalCode: profileData.postalCode || "",
         });
       } catch (error) {
-        console.error("LOAD PROFILE ERROR:", error);
+        if (!cancelled) {
+          console.error("LOAD PROFILE ERROR:", error);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoadingUser(false);
+        }
       }
     }
 
     loadUser();
+
+    return () => {
+      cancelled = true;
+    };
   }, [status]);
 
-  if (status === "loading" || loading) {
+  /*
+   * Authentication is still loading.
+   */
+  if (status === "loading") {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#F8F3EA]">
         <div className="text-center">
@@ -115,6 +151,9 @@ export default function AccountPage() {
     );
   }
 
+  /*
+   * User is not authenticated.
+   */
   if (status === "unauthenticated") {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#F8F3EA] px-5">
@@ -129,7 +168,7 @@ export default function AccountPage() {
 
           <Link
             href="/login"
-            className="mt-6 inline-block rounded-full bg-[#7C8B73] px-6 py-3 font-semibold text-white"
+            className="mt-6 inline-block rounded-full bg-[#7C8B73] px-6 py-3 font-semibold text-white transition hover:bg-[#66745F]"
           >
             Se connecter
           </Link>
@@ -138,16 +177,18 @@ export default function AccountPage() {
     );
   }
 
-  if (!user) {
+  /*
+   * Authentication is confirmed, but the user profile
+   * is still being fetched.
+   */
+  if (loadingUser || !user) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#F8F3EA] px-5">
-        <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Profil introuvable
-          </h1>
+      <main className="flex min-h-screen items-center justify-center bg-[#F8F3EA]">
+        <div className="text-center">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-[#7C8B73]/20 border-t-[#7C8B73]" />
 
-          <p className="mt-2 text-gray-500">
-            Impossible de charger vos informations.
+          <p className="mt-4 text-sm text-gray-500">
+            Chargement de votre profil...
           </p>
         </div>
       </main>
@@ -184,7 +225,9 @@ export default function AccountPage() {
     }));
   }
 
-  async function saveProfile(event: FormEvent<HTMLFormElement>) {
+  async function saveProfile(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
     setSavingProfile(true);
@@ -197,34 +240,41 @@ export default function AccountPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify(profile),
       });
 
-      const data = (await response.json()) as {
-        message?: string;
-        error?: string;
-      };
+      const data: ApiSuccess = await response.json();
 
       if (!response.ok) {
         setProfileError(
-          data.error || "Impossible de mettre à jour le profil."
+          data.error ||
+            "Impossible de mettre à jour le profil."
         );
         return;
       }
 
       setProfileMessage(
-        data.message || "Profil mis à jour avec succès."
+        data.message ||
+          "Profil mis à jour avec succès."
       );
 
       setUser((current) =>
         current
           ? {
               ...current,
-              ...profile,
+              name: profile.name,
+              phone: profile.phone,
+              address: profile.address,
+              city: profile.city,
+              postalCode: profile.postalCode,
             }
           : current
       );
 
+      /*
+       * Update the NextAuth session name.
+       */
       await update({
         name: profile.name,
       });
@@ -266,7 +316,8 @@ export default function AccountPage() {
     }
 
     if (
-      password.newPassword !== password.confirmPassword
+      password.newPassword !==
+      password.confirmPassword
     ) {
       setPasswordError(
         "Les nouveaux mots de passe ne correspondent pas."
@@ -282,23 +333,23 @@ export default function AccountPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify(password),
       });
 
-      const data = (await response.json()) as {
-        message?: string;
-        error?: string;
-      };
+      const data: ApiSuccess = await response.json();
 
       if (!response.ok) {
         setPasswordError(
-          data.error || "Impossible de changer le mot de passe."
+          data.error ||
+            "Impossible de changer le mot de passe."
         );
         return;
       }
 
       setPasswordMessage(
-        "Votre mot de passe a été modifié avec succès."
+        data.message ||
+          "Votre mot de passe a été modifié avec succès."
       );
 
       setPassword({
@@ -320,6 +371,7 @@ export default function AccountPage() {
   return (
     <main className="min-h-screen bg-[#F8F3EA] px-5 py-10 md:px-10">
       <div className="mx-auto max-w-6xl">
+
         {/* Header */}
         <div className="mb-10">
           <p className="text-sm font-semibold uppercase tracking-[0.15em] text-[#7C8B73]">
@@ -336,11 +388,15 @@ export default function AccountPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
+
           {/* MAIN */}
           <div className="space-y-6 lg:col-span-2">
-            {/* Profile */}
+
+            {/* PROFILE */}
             <section className="rounded-2xl bg-white p-6 shadow-sm md:p-8">
+
               <div className="flex flex-col items-center gap-5 border-b border-gray-100 pb-8 sm:flex-row">
+
                 <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-[#7C8B73] text-2xl font-bold text-white">
                   {initials}
                 </div>
@@ -354,6 +410,7 @@ export default function AccountPage() {
                     {user.email}
                   </p>
                 </div>
+
               </div>
 
               <form
@@ -365,6 +422,7 @@ export default function AccountPage() {
                 </h2>
 
                 <div className="mt-6 grid gap-5 sm:grid-cols-2">
+
                   <div>
                     <label
                       htmlFor="name"
@@ -380,6 +438,8 @@ export default function AccountPage() {
                       value={profile.name}
                       onChange={handleProfileChange}
                       required
+                      maxLength={100}
+                      autoComplete="name"
                       className="input"
                     />
                   </div>
@@ -420,6 +480,8 @@ export default function AccountPage() {
                       value={profile.phone}
                       onChange={handleProfileChange}
                       placeholder="+216 XX XXX XXX"
+                      maxLength={30}
+                      autoComplete="tel"
                       className="input"
                     />
                   </div>
@@ -439,6 +501,8 @@ export default function AccountPage() {
                       value={profile.city}
                       onChange={handleProfileChange}
                       placeholder="Tunis"
+                      maxLength={100}
+                      autoComplete="address-level2"
                       className="input"
                     />
                   </div>
@@ -458,6 +522,8 @@ export default function AccountPage() {
                       value={profile.address}
                       onChange={handleProfileChange}
                       placeholder="Votre adresse"
+                      maxLength={250}
+                      autoComplete="street-address"
                       className="input"
                     />
                   </div>
@@ -477,9 +543,12 @@ export default function AccountPage() {
                       value={profile.postalCode}
                       onChange={handleProfileChange}
                       placeholder="1000"
+                      maxLength={20}
+                      autoComplete="postal-code"
                       className="input"
                     />
                   </div>
+
                 </div>
 
                 {profileError && (
@@ -503,11 +572,13 @@ export default function AccountPage() {
                     ? "Enregistrement..."
                     : "Enregistrer les modifications"}
                 </button>
+
               </form>
             </section>
 
-            {/* Password */}
+            {/* PASSWORD */}
             <section className="rounded-2xl bg-white p-6 shadow-sm md:p-8">
+
               <div>
                 <h2 className="text-xl font-bold text-gray-900">
                   Sécurité
@@ -522,6 +593,7 @@ export default function AccountPage() {
                 onSubmit={changePassword}
                 className="mt-6 space-y-5"
               >
+
                 <div>
                   <label
                     htmlFor="currentPassword"
@@ -537,6 +609,7 @@ export default function AccountPage() {
                     value={password.currentPassword}
                     onChange={handlePasswordChange}
                     autoComplete="current-password"
+                    required
                     className="input"
                   />
                 </div>
@@ -557,6 +630,8 @@ export default function AccountPage() {
                     onChange={handlePasswordChange}
                     autoComplete="new-password"
                     minLength={8}
+                    maxLength={128}
+                    required
                     className="input"
                   />
 
@@ -581,6 +656,8 @@ export default function AccountPage() {
                     onChange={handlePasswordChange}
                     autoComplete="new-password"
                     minLength={8}
+                    maxLength={128}
+                    required
                     className="input"
                   />
                 </div>
@@ -606,12 +683,14 @@ export default function AccountPage() {
                     ? "Modification..."
                     : "Changer le mot de passe"}
                 </button>
+
               </form>
             </section>
           </div>
 
           {/* SIDEBAR */}
           <aside className="space-y-4">
+
             <h2 className="text-xl font-bold text-[#3F493A]">
               Mon espace
             </h2>
@@ -684,6 +763,7 @@ export default function AccountPage() {
                 →
               </span>
             </Link>
+
           </aside>
         </div>
       </div>

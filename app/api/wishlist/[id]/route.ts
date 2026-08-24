@@ -1,62 +1,111 @@
+import { getServerSession } from "next-auth";
+import mongoose from "mongoose";
+
 import connectDB from "@/lib/mongodb";
+import { authOptions } from "@/lib/auth";
 
 import Wishlist from "@/models/Wishlist";
 
-
+interface RouteContext {
+  params: Promise<{
+    id: string;
+  }>;
+}
 
 export async function DELETE(
+  request: Request,
+  context: RouteContext
+): Promise<Response> {
+  try {
+    /*
+     * AUTHENTICATION
+     */
 
-request:Request,
+    const session =
+      await getServerSession(authOptions);
 
-context:{
-params:Promise<{
-id:string
-}>
-}
+    if (!session?.user?.id) {
+      return Response.json(
+        {
+          error: "Not authenticated.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
 
-){
+    /*
+     * ID VALIDATION
+     */
 
+    const { id } =
+      await context.params;
 
-try{
+    if (
+      !mongoose.Types.ObjectId.isValid(id)
+    ) {
+      return Response.json(
+        {
+          error: "Invalid wishlist ID.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
+    await connectDB();
 
-await connectDB();
+    /*
+     * FIND ONLY THE USER'S OWN WISHLIST ITEM
+     */
 
+    const wishlist =
+      await Wishlist.findOne({
+        _id: id,
+        user: session.user.id,
+      });
 
+    if (!wishlist) {
+      return Response.json(
+        {
+          error: "Wishlist item not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
 
-const {id}=await context.params;
+    /*
+     * DELETE
+     */
 
+    await wishlist.deleteOne();
 
+    return Response.json(
+      {
+        message:
+          "Removed from wishlist",
+      },
+      {
+        status: 200,
+      }
+    );
+  } catch (error) {
+    console.error(
+      "DELETE WISHLIST ERROR:",
+      error
+    );
 
-await Wishlist.findByIdAndDelete(id);
-
-
-
-return Response.json({
-
-message:"Removed from wishlist"
-
-});
-
-
-
-}
-catch(error){
-
-
-return Response.json(
-
-{
-error:"Delete failed"
-},
-
-{
-status:500
-}
-
-);
-
-
-}
-
+    return Response.json(
+      {
+        error: "Delete failed.",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
 }

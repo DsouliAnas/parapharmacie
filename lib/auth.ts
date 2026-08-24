@@ -14,6 +14,7 @@ export const authOptions: NextAuthOptions = {
         email: {
           label: "Email",
           type: "email",
+          placeholder: "admin@fairys.tn",
         },
 
         password: {
@@ -23,47 +24,147 @@ export const authOptions: NextAuthOptions = {
       },
 
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        /*
+         * Never trust data coming from the browser.
+         */
+        if (
+          !credentials ||
+          typeof credentials.email !== "string" ||
+          typeof credentials.password !== "string"
+        ) {
           return null;
         }
 
-        const email = credentials.email.trim().toLowerCase();
-
-        await connectDB();
-
-        const user = await User.findOne({
-          email,
-        });
-
-        if (!user) {
+        /*
+         * Basic size protection.
+         *
+         * This prevents someone from sending extremely
+         * large strings to the authentication endpoint.
+         */
+        if (
+          credentials.email.length > 254 ||
+          credentials.password.length > 128
+        ) {
           return null;
         }
 
-        const passwordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
+        const email =
+          credentials.email
+            .trim()
+            .toLowerCase();
 
-        if (!passwordValid) {
+        const password =
+          credentials.password;
+
+        if (!email || !password) {
           return null;
         }
 
-        return {
-          id: user._id.toString(),
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        };
+        /*
+         * Basic email validation.
+         *
+         * This is not intended to replace database validation.
+         * It simply rejects obviously malformed input.
+         */
+        const emailPattern =
+          /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!emailPattern.test(email)) {
+          return null;
+        }
+
+        try {
+          await connectDB();
+
+          /*
+           * Only retrieve the fields needed for authentication.
+           */
+          const user = await User.findOne({
+            email,
+          }).select(
+            "_id name email password role"
+          );
+
+          /*
+           * Deliberately return the same result whether:
+           *
+           * - the email does not exist
+           * - the password is incorrect
+           *
+           * This prevents simple account enumeration.
+           */
+          if (!user) {
+            return null;
+          }
+
+          if (
+            typeof user.password !== "string" ||
+            !user.password
+          ) {
+            return null;
+          }
+
+          const passwordValid =
+            await bcrypt.compare(
+              password,
+              user.password
+            );
+
+          if (!passwordValid) {
+            return null;
+          }
+
+          /*
+           * Only return the information that NextAuth
+           * actually needs.
+           *
+           * NEVER return:
+           * - password
+           * - password hash
+           * - address
+           * - phone
+           * - other private database fields
+           */
+          return {
+            id: user._id.toString(),
+            name: user.name,
+            email: user.email,
+            role: user.role,
+          };
+        } catch (error) {
+          /*
+           * Never expose database/authentication errors
+           * to the browser.
+           */
+          console.error(
+            "AUTHENTICATION ERROR:",
+            error
+          );
+
+          return null;
+        }
       },
     }),
   ],
 
+  /*
+   * JWT sessions are appropriate for this setup.
+   */
   session: {
     strategy: "jwt",
   },
 
   callbacks: {
-    async jwt({ token, user }) {
+    /*
+     * JWT
+     *
+     * Only store the minimum information required
+     * by the application.
+     */
+    async jwt({
+      token,
+      user,
+    }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
@@ -72,13 +173,41 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
-    async session({ session, token }) {
+    /*
+     * Session
+     *
+     * Only expose the minimum information required
+     * by the frontend.
+     */
+    async session({
+      session,
+      token,
+    }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
+        if (typeof token.id === "string") {
+          session.user.id = token.id;
+        }
+
+        if (typeof token.role === "string") {
+          session.user.role = token.role;
+        }
       }
 
       return session;
     },
   },
+
+  /*
+   * Prevent exposing unnecessary authentication
+   * information in the URL.
+   */
+  pages: {
+    signIn: "/login",
+  },
+
+  /*
+   * Useful during development, but don't enable
+   * verbose authentication debugging in production.
+   */
+  debug: process.env.NODE_ENV === "development",
 };

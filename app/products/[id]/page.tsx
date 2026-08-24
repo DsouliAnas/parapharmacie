@@ -5,17 +5,24 @@ import RelatedProducts from "@/components/product/RelatedProducts";
 import ProductRating from "@/components/product/ProductRating";
 import ReviewsList from "@/components/product/ReviewsList";
 import ReviewForm from "@/components/product/ReviewForm";
+import ProductTabs from "@/components/product/ProductTabs";
 
 interface Product {
   _id: string;
   name: string;
   description: string;
+  benefits?: string[];
+  usage?: string[];
   price: number;
   discountPrice?: number;
   images: string[];
   stock: number;
   isActive: boolean;
   category?: {
+    _id: string;
+    name: string;
+  };
+  subcategory?: {
     _id: string;
     name: string;
   };
@@ -34,13 +41,12 @@ interface Review {
 }
 
 async function getProduct(id: string): Promise<Product | null> {
+  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+
   try {
-    const response = await fetch(
-      `http://localhost:3000/api/products/${id}`,
-      {
-        cache: "no-store",
-      }
-    );
+    const response = await fetch(`${baseUrl}/api/products/${id}`, {
+      cache: "no-store",
+    });
 
     if (!response.ok) {
       return null;
@@ -55,9 +61,11 @@ async function getProduct(id: string): Promise<Product | null> {
 }
 
 async function getReviews(productId: string): Promise<Review[]> {
+  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+
   try {
     const response = await fetch(
-      `http://localhost:3000/api/reviews?productId=${productId}`,
+      `${baseUrl}/api/reviews?productId=${productId}`,
       {
         cache: "no-store",
       }
@@ -76,13 +84,12 @@ async function getReviews(productId: string): Promise<Review[]> {
 }
 
 async function getProducts(): Promise<Product[]> {
+  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+
   try {
-    const response = await fetch(
-      "http://localhost:3000/api/products",
-      {
-        cache: "no-store",
-      }
-    );
+    const response = await fetch(`${baseUrl}/api/products`, {
+      cache: "no-store",
+    });
 
     if (!response.ok) {
       return [];
@@ -107,19 +114,23 @@ export default async function ProductPage({
 
   if (!product) {
     return (
-      <main className="min-h-screen bg-[#F8F3EA] px-6 py-20">
-        <div className="mx-auto max-w-2xl rounded-3xl bg-white p-12 text-center shadow-sm">
-          <h1 className="text-3xl font-bold text-gray-900">
+      <main className="min-h-screen bg-[var(--paper)] px-6 py-24">
+        <div className="mx-auto max-w-lg border border-[var(--line)] bg-[var(--paper-deep)] p-12 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--clay)]">
+            Fiche introuvable
+          </p>
+
+          <h1 className="font-display mt-4 text-3xl font-medium text-[var(--forest)]">
             Produit introuvable
           </h1>
 
-          <p className="mt-3 text-gray-500">
+          <p className="mt-3 text-sm leading-6 text-[var(--ink)]/55">
             Ce produit n&apos;existe pas ou n&apos;est plus disponible.
           </p>
 
           <Link
             href="/shop"
-            className="mt-8 inline-block rounded-full bg-[#7C8B73] px-7 py-3 font-semibold text-white transition hover:bg-[#66745F]"
+            className="mt-8 inline-flex items-center gap-2 bg-[var(--forest)] px-7 py-3 text-sm font-semibold text-[var(--paper)] transition hover:bg-[var(--forest-soft)]"
           >
             Retour à la boutique
           </Link>
@@ -146,63 +157,52 @@ export default async function ProductPage({
 
   const averageRating =
     reviews.length > 0
-      ? reviews.reduce(
-          (total, review) => total + review.rating,
-          0
-        ) / reviews.length
+      ? reviews.reduce((total, review) => total + review.rating, 0) /
+        reviews.length
       : 0;
 
   return (
-    <main className="min-h-screen bg-[#F8F3EA]">
+    <main className="min-h-screen bg-[var(--paper)]">
       <div className="mx-auto max-w-7xl px-6 py-12 md:px-10 md:py-16">
+        {/* Fil d'ariane léger */}
+        <div className="mb-8 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--ink)]/45">
+          <Link href="/" className="transition hover:text-[var(--clay)]">
+            Accueil
+          </Link>
+          <span className="text-[var(--ink)]/25">/</span>
+          <Link href="/shop" className="transition hover:text-[var(--clay)]">
+            Boutique
+          </Link>
+          {product.category?.name && (
+            <>
+              <span className="text-[var(--ink)]/25">/</span>
+              <span className="text-[var(--forest)]">
+                {product.category.name}
+              </span>
+            </>
+          )}
+        </div>
+
         {/* Product */}
         <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-          {/* Gallery */}
           <ProductGallery images={product.images} />
-
-          {/* Information */}
           <ProductInfo product={product} />
         </div>
 
         {/* Related products */}
         {relatedProducts.length > 0 && (
-          <section className="mt-20 border-t border-gray-200 pt-16">
+          <section className="mt-20 border-t border-[var(--line)] pt-14">
+            <div className="mb-8 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--forest)]">
+              <span>N°06 — Produits similaires</span>
+              <span className="leader" />
+            </div>
+
             <RelatedProducts products={relatedProducts} />
           </section>
         )}
 
         {/* Reviews */}
-        <section className="mt-20 border-t border-gray-200 pt-16">
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">
-              Avis clients
-            </h2>
-
-            <p className="mt-2 text-gray-500">
-              Découvrez les avis des clients sur ce produit.
-            </p>
-          </div>
-
-          <div className="grid gap-10 lg:grid-cols-[300px_1fr]">
-            {/* Rating summary */}
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
-              <ProductRating
-                rating={averageRating}
-                count={reviews.length}
-              />
-            </div>
-
-            {/* Reviews */}
-            <div>
-              <ReviewsList productId={product._id} />
-            </div>
-          </div>
-
-          {/* Review form */}
-          <div className="mt-12 rounded-2xl bg-white p-6 shadow-sm md:p-8">
-            <ReviewForm productId={product._id} />
-          </div>
-        </section>
+        <ProductTabs product={product} />
       </div>
     </main>
   );

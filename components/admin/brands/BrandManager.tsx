@@ -1,446 +1,241 @@
 "use client";
 
-
-import {useState} from "react";
-import {useRouter} from "next/navigation";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import BrandForm from "@/components/admin/brands/BrandForm";
 import EditBrandForm from "@/components/admin/brands/EditBrandForm";
 
-
-
-interface Brand{
-
-_id:string;
-
-name:string;
-
-logo?:string;
-
+interface Brand {
+  _id: string;
+  name: string;
+  logo?: string;
 }
 
-
-
-interface BrandManagerProps{
-
-brands:Brand[];
-
+interface BrandManagerProps {
+  brands: Brand[];
 }
-
-
-
-
 
 export default function BrandManager({
-brands
-}:BrandManagerProps){
-
-
-
-const router=useRouter();
-
-
-
-const [open,setOpen]=useState(false);
-
-const [editOpen,setEditOpen]=useState(false);
-
-const [selectedBrand,setSelectedBrand]=useState<Brand|null>(null);
-
-
-
-
-
-
-async function deleteBrand(id:string){
-
-
-const confirmDelete =
-window.confirm(
-"Supprimer cette marque ?"
-);
-
-
-
-if(!confirmDelete){
-return;
-}
-
-
-
-const response =
-await fetch(
-`/api/brands/${id}`,
-{
-method:"DELETE"
-}
-);
-
-
-
-if(response.ok){
-
-router.refresh();
-
-}
-
-
-}
-
-
-
-
-
-
-
-return (
-
-<div>
-
-
-<div className="
-flex
-justify-between
-items-center
-">
-
-
-<h1 className="
-text-4xl
-font-bold
-text-[#7C8B73]
-">
-
-Gestion des marques
-
-</h1>
-
-
-
-
-<button
-
-onClick={()=>setOpen(true)}
-
-className="
-bg-[#7C8B73]
-text-white
-px-6
-py-3
-rounded-full
-"
-
->
-
-+ Ajouter
-
-</button>
-
-
-</div>
-
-
-
-
-
-
-<div className="
-mt-10
-bg-white
-rounded-2xl
-shadow
-overflow-hidden
-">
-
-
-<table className="w-full">
-
-
-<thead className="bg-[#F8F3EA]">
-
-
-<tr>
-
-<th className="p-4 text-left">
-Logo
-</th>
-
-
-<th className="p-4 text-left">
-Nom
-</th>
-
-
-<th className="p-4 text-left">
-Actions
-</th>
-
-
-</tr>
-
-
-</thead>
-
-
-
-
-<tbody>
-
-
-{
-brands.map((brand)=>(
-
-
-<tr
-key={brand._id}
-className="border-t"
->
-
-
-<td className="p-4">
-
-
-<img
-
-src={brand.logo || "/logo.png"}
-
-className="
-w-16
-h-16
-object-cover
-rounded-lg
-"
-
-alt={brand.name}
-
-/>
-
-
-</td>
-
-
-
-<td className="p-4 font-semibold">
-
-{brand.name}
-
-</td>
-
-
-
-
-<td className="p-4">
-
-
-<button
-
-onClick={()=>{
-
-setSelectedBrand(brand);
-
-setEditOpen(true);
-
-}}
-
-className="
-text-blue-500
-mr-4
-"
-
->
-
-✏️ Modifier
-
-</button>
-
-
-
-
-<button
-
-onClick={()=>deleteBrand(brand._id)}
-
-className="
-text-red-500
-"
-
->
-
-🗑 Supprimer
-
-</button>
-
-
-</td>
-
-
-
-</tr>
-
-
-))
-}
-
-
-</tbody>
-
-
-</table>
-
-
-</div>
-
-
-
-
-
-
-{
-open && (
-
-<div className="
-fixed
-inset-0
-bg-black/40
-flex
-items-center
-justify-center
-">
-
-
-<div className="
-bg-white
-p-8
-rounded-2xl
-w-full
-max-w-lg
-">
-
-
-<h2 className="
-text-2xl
-font-bold
-text-[#7C8B73]
-">
-
-Ajouter marque
-
-</h2>
-
-
-
-<BrandForm
-
-onSuccess={()=>{
-
-setOpen(false);
-
-router.refresh();
-
-}}
-
-/>
-
-
-
-
-<button
-
-onClick={()=>setOpen(false)}
-
-className="
-mt-5
-border
-px-5
-py-2
-rounded-full
-"
-
->
-
-Fermer
-
-</button>
-
-
-</div>
-
-
-</div>
-
-)
-
-}
-
-
-
-
-
-
-{
-editOpen && selectedBrand && (
-
-<div className="
-fixed
-inset-0
-bg-black/40
-flex
-items-center
-justify-center
-">
-
-
-<div className="
-bg-white
-p-8
-rounded-2xl
-w-full
-max-w-lg
-">
-
-
-<h2 className="
-text-2xl
-font-bold
-text-[#7C8B73]
-">
-
-Modifier marque
-
-</h2>
-
-
-
-<EditBrandForm
-
-brand={selectedBrand}
-
-onSuccess={()=>{
-
-setEditOpen(false);
-
-setSelectedBrand(null);
-
-router.refresh();
-
-}}
-
-/>
-
-
-
-</div>
-
-
-</div>
-
-)
-
-}
-
-
-
-</div>
-
-)
-
+  brands,
+}: BrandManagerProps): React.ReactElement {
+  const router = useRouter();
+
+  const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
+  const [isEditOpen, setIsEditOpen] = useState<boolean>(false);
+  const [selectedBrand, setSelectedBrand] =
+    useState<Brand | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  function closeCreateModal(): void {
+    setIsCreateOpen(false);
+  }
+
+  function closeEditModal(): void {
+    setIsEditOpen(false);
+    setSelectedBrand(null);
+  }
+
+  function openEditModal(brand: Brand): void {
+    setSelectedBrand(brand);
+    setIsEditOpen(true);
+  }
+
+  async function deleteBrand(id: string): Promise<void> {
+    if (deletingId) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Supprimer cette marque ?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(id);
+
+    try {
+      const response = await fetch(`/api/brands/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data: unknown = await response.json();
+
+        if (
+          typeof data === "object" &&
+          data !== null &&
+          "error" in data &&
+          typeof data.error === "string"
+        ) {
+          alert(data.error);
+        } else {
+          alert("Erreur lors de la suppression.");
+        }
+
+        return;
+      }
+
+      router.refresh();
+    } catch (error: unknown) {
+      console.error("DELETE BRAND ERROR:", error);
+      alert("Une erreur est survenue lors de la suppression.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-4xl font-bold text-[#7C8B73]">
+          Gestion des marques
+        </h1>
+
+        <button
+          type="button"
+          onClick={() => setIsCreateOpen(true)}
+          className="rounded-full bg-[#7C8B73] px-6 py-3 font-semibold text-white transition hover:bg-[#66745F]"
+        >
+          + Ajouter
+        </button>
+      </div>
+
+      <div className="mt-10 overflow-hidden rounded-2xl bg-white shadow-sm">
+        {brands.length === 0 ? (
+          <div className="p-10 text-center text-gray-500">
+            Aucune marque disponible.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[600px]">
+              <thead className="bg-[#F8F3EA]">
+                <tr>
+                  <th className="p-4 text-left">Logo</th>
+                  <th className="p-4 text-left">Nom</th>
+                  <th className="p-4 text-left">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {brands.map((brand) => (
+                  <tr
+                    key={brand._id}
+                    className="border-t border-gray-100"
+                  >
+                    <td className="p-4">
+                      <img
+                        src={brand.logo || "/logo.png"}
+                        alt={brand.name}
+                        className="h-16 w-16 rounded-lg object-contain"
+                      />
+                    </td>
+
+                    <td className="p-4 font-semibold text-gray-900">
+                      {brand.name}
+                    </td>
+
+                    <td className="p-4">
+                      <div className="flex flex-wrap gap-4">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(brand)}
+                          className="font-medium text-blue-500 transition hover:text-blue-700"
+                        >
+                          ✏️ Modifier
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteBrand(brand._id)}
+                          disabled={deletingId === brand._id}
+                          className="font-medium text-red-500 transition hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {deletingId === brand._id
+                            ? "Suppression..."
+                            : "🗑 Supprimer"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {isCreateOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-brand-title"
+        >
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-8">
+            <h2
+              id="create-brand-title"
+              className="text-2xl font-bold text-[#7C8B73]"
+            >
+              Ajouter une marque
+            </h2>
+
+            <div className="mt-6">
+              <BrandForm
+                onSuccess={() => {
+                  closeCreateModal();
+                  router.refresh();
+                }}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={closeCreateModal}
+              className="mt-5 rounded-full border border-gray-200 px-5 py-2 transition hover:bg-gray-50"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isEditOpen && selectedBrand && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-brand-title"
+        >
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-8">
+            <h2
+              id="edit-brand-title"
+              className="text-2xl font-bold text-[#7C8B73]"
+            >
+              Modifier la marque
+            </h2>
+
+            <div className="mt-6">
+              <EditBrandForm
+                brand={selectedBrand}
+                onSuccess={() => {
+                  closeEditModal();
+                  router.refresh();
+                }}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={closeEditModal}
+              className="mt-5 rounded-full border border-gray-200 px-5 py-2 transition hover:bg-gray-50"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

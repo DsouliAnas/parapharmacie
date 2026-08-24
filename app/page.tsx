@@ -1,10 +1,27 @@
 import Image from "next/image";
-import { Leaf, Truck, Sparkles, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowRight,
+  ShieldCheck,
+  Sparkles,
+  Truck,
+} from "lucide-react";
 
 import ProductCard from "@/components/ProductCard";
-import CategoryCard from "@/components/CategoryCard";
 import BrandCard from "@/components/BrandCard";
-import Button from "@/components/Button";
+export const dynamic = "force-dynamic";
+
+interface ProductBrand {
+  _id: string;
+  name: string;
+  logo?: string;
+}
+
+interface ProductCategory {
+  _id: string;
+  name: string;
+  slug?: string;
+}
 
 interface Product {
   _id: string;
@@ -13,478 +30,517 @@ interface Product {
   discountPrice?: number;
   images: string[];
   stock: number;
-  brand?: {
-    _id: string;
-    name: string;
-  };
-  category?: {
-    _id: string;
-    name: string;
-  };
+  salesCount?: number;
+  brand?: ProductBrand;
+  category?: ProductCategory;
 }
 
-async function getProducts(): Promise<Product[]> {
-  const baseUrl =
-    process.env.NEXTAUTH_URL || "http://localhost:3000";
-
-  const res = await fetch(
-    `${baseUrl}/api/products`,
-    {
-      cache: "no-store",
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch products");
-  }
-
-  const products = await res.json();
-
-  return Array.isArray(products) ? products : [];
+interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+  image?: string;
 }
 
-const brands = [
-  "La Roche Posay",
-  "Bioderma",
-  "Avène",
-  "Vichy",
-  "Caudalie",
-  "L'Occitane",
-];
+interface Brand {
+  _id: string;
+  name: string;
+  logo?: string;
+}
 
-const categories = [
-  {
-    name: "Visage",
-    image: "https://via.placeholder.com/300",
-  },
-  {
-    name: "Cheveux",
-    image: "https://via.placeholder.com/300",
-  },
-  {
-    name: "Corps",
-    image: "https://via.placeholder.com/300",
-  },
-  {
-    name: "Bébé",
-    image: "https://via.placeholder.com/300",
-  },
-  {
-    name: "Compléments",
-    image: "https://via.placeholder.com/300",
-  },
-  {
-    name: "Solaire",
-    image: "https://via.placeholder.com/300",
-  },
-];
+interface ValueItem {
+  icon: typeof ShieldCheck;
+  title: string;
+  text: string;
+}
 
-const values = [
+const values: ValueItem[] = [
   {
-    icon: Leaf,
+    icon: ShieldCheck,
     title: "Produits authentiques",
-    text: "Des marques fiables et reconnues, sélectionnées avec soin.",
+    text: "Des marques fiables et reconnues, sélectionnées avec soin pour votre beauté et votre bien-être.",
   },
   {
     icon: Truck,
     title: "Livraison rapide",
-    text: "Recevez vos commandes en toute simplicité, où que vous soyez.",
+    text: "Recevez vos commandes facilement et profitez d'une expérience simple du panier jusqu'à la livraison.",
   },
   {
     icon: Sparkles,
     title: "Conseils beauté",
-    text: "Des recommandations adaptées à votre peau et vos besoins.",
+    text: "Une sélection pensée pour répondre aux besoins de votre peau, de vos cheveux et de votre quotidien.",
   },
 ];
 
-const collagePositions = [
-  {
-    top: "6%",
-    left: "4%",
-    size: 150,
-    r: -8,
-    delay: "0s",
-  },
-  {
-    top: "58%",
-    left: "2%",
-    size: 120,
-    r: 6,
-    delay: "1.2s",
-  },
-  {
-    top: "12%",
-    left: "82%",
-    size: 170,
-    r: 10,
-    delay: "0.6s",
-  },
-  {
-    top: "64%",
-    left: "86%",
-    size: 130,
-    r: -6,
-    delay: "1.8s",
-  },
-  {
-    top: "2%",
-    left: "42%",
-    size: 100,
-    r: 4,
-    delay: "2.4s",
-  },
-  {
-    top: "74%",
-    left: "46%",
-    size: 110,
-    r: -10,
-    delay: "0.3s",
-  },
-  {
-    top: "34%",
-    left: "10%",
-    size: 90,
-    r: 12,
-    delay: "1.5s",
-  },
-  {
-    top: "40%",
-    left: "90%",
-    size: 95,
-    r: -4,
-    delay: "0.9s",
-  },
-];
+async function getProducts(): Promise<Product[]> {
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+
+  try {
+    const response = await fetch(`${baseUrl}/api/products`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.error("Failed to fetch products:", response.status);
+      return [];
+    }
+
+    const data: unknown = await response.json();
+    return Array.isArray(data) ? (data as Product[]) : [];
+  } catch (error: unknown) {
+    console.error("GET PRODUCTS ERROR:", error);
+    return [];
+  }
+}
+
+async function getCategories(): Promise<Category[]> {
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+
+  try {
+    const response = await fetch(`${baseUrl}/api/categories`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.error("Failed to fetch categories:", response.status);
+      return [];
+    }
+
+    const data: unknown = await response.json();
+    return Array.isArray(data) ? (data as Category[]) : [];
+  } catch (error: unknown) {
+    console.error("GET CATEGORIES ERROR:", error);
+    return [];
+  }
+}
+
+async function getBrands(): Promise<Brand[]> {
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+
+  try {
+    const response = await fetch(`${baseUrl}/api/brands`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.error("Failed to fetch brands:", response.status);
+      return [];
+    }
+
+    const data: unknown = await response.json();
+    return Array.isArray(data) ? (data as Brand[]) : [];
+  } catch (error: unknown) {
+    console.error("GET BRANDS ERROR:", error);
+    return [];
+  }
+}
+
+function getDiscountPercentage(product: Product): number {
+  if (
+    typeof product.discountPrice !== "number" ||
+    product.discountPrice >= product.price ||
+    product.price <= 0
+  ) {
+    return 0;
+  }
+
+  return Math.round(
+    ((product.price - product.discountPrice) / product.price) * 100
+  );
+}
+
+/** Petite étiquette "N°0X — LIBELLÉ" suivie d'un filet pointillé —
+ *  le dispositif de repérage utilisé dans toute la page, comme
+ *  les fiches d'un catalogue d'officine. */
+function Eyebrow({
+  index,
+  label,
+  tone = "ink",
+}: {
+  index: string;
+  label: string;
+  tone?: "ink" | "paper";
+}) {
+  const color = tone === "paper" ? "text-[var(--paper)]/70" : "text-[var(--forest)]";
+  return (
+    <div className={`flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] ${color}`}>
+      <span>N°{index} — {label}</span>
+      <span className="leader" />
+    </div>
+  );
+}
 
 export default async function Home() {
-  const products = await getProducts();
+  const [products, categories, brands] = await Promise.all([
+    getProducts(),
+    getCategories(),
+    getBrands(),
+  ]);
 
-  const collageImages = products
-    .map((product) => product.images?.[0])
-    .filter((src): src is string => Boolean(src))
-    .slice(0, collagePositions.length);
+  const promotionalProducts = products
+    .filter(
+      (product) =>
+        typeof product.discountPrice === "number" &&
+        product.discountPrice < product.price
+    )
+    .sort((a, b) => getDiscountPercentage(b) - getDiscountPercentage(a))
+    .slice(0, 4);
+
+  const bestSellers = [...products]
+    .sort((a, b) => {
+      const salesA = typeof a.salesCount === "number" ? a.salesCount : 0;
+      const salesB = typeof b.salesCount === "number" ? b.salesCount : 0;
+      return salesB - salesA;
+    })
+    .slice(0, 4);
+
+  /* Bande "spécimen" sous le héro — huit produits présentés comme
+     des planches numérotées plutôt qu'un collage flottant. */
+  const specimenImages = products
+    .map((product) => ({ src: product.images?.[0], name: product.name }))
+    .filter(
+      (item): item is { src: string; name: string } => Boolean(item.src)
+    )
+    .slice(0, 8);
+
+  const visibleCategories = categories.slice(0, 6);
+  const visibleBrands = brands.slice(0, 12);
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen overflow-hidden bg-[var(--paper)]">
+      {/* =====================================================
+          HERO
+      ===================================================== */}
 
-      {/* HERO */}
-      <section className="relative overflow-hidden bg-[var(--cream)] px-6 py-16 md:px-16 md:py-24">
+      <section className="relative overflow-hidden bg-[var(--forest)] px-6 pb-14 pt-16 md:px-16 md:pt-24">
+        <div className="pointer-events-none absolute -right-40 -top-40 h-[420px] w-[420px] rounded-full bg-[var(--gold)]/10 blur-3xl" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[var(--line-dark)]" />
 
-        {/* Product-photo collage */}
-        {collageImages.map((src, index) => {
-          const position = collagePositions[index];
-
-          return (
-            <div
-              key={src + index}
-              className="animate-float absolute overflow-hidden rounded-[2rem] opacity-[0.16] blur-[1px] grayscale-[15%]"
-              style={{
-                top: position.top,
-                left: position.left,
-                width: position.size,
-                height: position.size,
-                transform: `rotate(${position.r}deg)`,
-                animationDelay: position.delay,
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-            </div>
-          );
-        })}
-
-        <div
-          className="absolute h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 bg-[var(--blush)]/25 blur-3xl"
-          style={{
-            top: "35%",
-            left: "50%",
-            borderRadius:
-              "62% 38% 30% 70% / 60% 30% 70% 40%",
-          }}
-        />
-
-        <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center text-center">
-
-          <span className="rounded-full border border-[var(--sage)]/25 bg-white/80 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-[var(--sage-dark)] shadow-sm backdrop-blur">
-            Parapharmacie en ligne
-          </span>
-
-          <div className="mt-8 rounded-[2rem] border border-white/60 bg-white/50 px-8 py-10 shadow-[0_8px_40px_-12px_rgba(79,91,71,0.25)] backdrop-blur-md md:px-14 md:py-14">
-
-            <Image
-              src="/logo1.jpeg"
-              width={100}
-              height={100}
-              alt="Fairy's"
-              priority
-              className="mx-auto rounded-full border-4 border-white shadow-lg"
-            />
-
-            <h1 className="font-display mt-6 text-4xl font-medium leading-[1.1] text-[var(--sage-dark)] md:text-6xl">
-              Votre beauté,
-              <br />
-              <span className="italic text-[var(--sage)]">
-                votre bien-être
-              </span>
-            </h1>
-
-            <p className="mx-auto mt-6 max-w-md text-lg text-[var(--ink)]/70">
-              Découvrez nos produits santé et beauté,
-              sélectionnés avec soin pour prendre soin de vous,
-              chaque jour.
-            </p>
-
-            <div className="mt-9 flex justify-center">
-              <Button>
-                Découvrir nos offres
-              </Button>
-            </div>
-
+        <div className="relative mx-auto max-w-6xl">
+          <div className="reveal flex items-center justify-between border-b border-[var(--line-dark)] pb-6 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--paper)]/60">
+            <span>Fairy&apos;s — Maison de parapharmacie</span>
+            <span className="hidden sm:inline">Tunis</span>
           </div>
+
+          <div className="grid gap-14 pt-14 md:grid-cols-[1.2fr_0.8fr] md:items-end md:pt-16">
+            <div className="reveal">
+              <div className="flex items-center gap-4">
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-[var(--gold)]/40">
+                  <Image
+                    src="/logo1.jpeg"
+                    fill
+                    priority
+                    sizes="150px"
+                    alt="Fairy's"
+                    className="object-cover"
+                  />
+                </div>
+                <p className="text-[11px] uppercase tracking-[0.3em] text-[var(--gold)]">
+                  Beauté · Santé · Bien-être
+                </p>
+              </div>
+
+              <h1 className="font-display mt-8 text-5xl font-medium leading-[1.02] text-[var(--paper)] md:text-7xl">
+                Le soin,
+                <span className="block italic text-[var(--gold)]">
+                  sans compromis.
+                </span>
+              </h1>
+
+              <p className="mt-7 max-w-md text-[15px] leading-7 text-[var(--paper)]/65">
+                Une sélection contrôlée de produits santé, beauté et
+                bien-être — pensée comme une officine, présentée comme
+                une maison.
+              </p>
+
+              <div className="mt-9 flex flex-wrap gap-3">
+                <Link
+                  href="/shop"
+                  className="inline-flex items-center gap-2 bg-[var(--gold)] px-7 py-3.5 text-sm font-semibold text-[var(--forest)] transition hover:brightness-95"
+                >
+                  Découvrir la boutique
+                  <ArrowRight size={16} />
+                </Link>
+
+                <Link
+                  href="/shop"
+                  className="inline-flex items-center gap-2 border border-[var(--paper)]/25 px-7 py-3.5 text-sm font-semibold text-[var(--paper)] transition hover:border-[var(--paper)]/60"
+                >
+                  Voir tout le catalogue
+                </Link>
+              </div>
+            </div>
+
+            {/* FICHE — statistiques en filet pointillé */}
+            <div className="reveal space-y-3 border-l border-[var(--line-dark)] pl-6">
+              {[
+                ["Sélection contrôlée", "100 %"],
+                ["Livraison", "48 h"],
+                ["Règlement", "à la livraison"],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="flex items-baseline gap-2 text-[13px] text-[var(--paper)]/75"
+                >
+                  <span className="uppercase tracking-[0.14em]">{label}</span>
+                  <span className="leader" />
+                  <span className="font-display italic text-[var(--gold)]">
+                    {value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* BANDE SPÉCIMEN */}
+          {specimenImages.length > 0 && (
+            <div className="reveal mt-16 flex gap-3 overflow-x-auto pb-2">
+              {specimenImages.map((item, index) => (
+                <div
+                  key={`${item.src}-${index}`}
+                  className="group relative h-24 w-24 shrink-0 overflow-hidden border border-[var(--line-dark)] bg-[var(--forest-soft)] md:h-28 md:w-28"
+                >
+                  <span className="absolute left-1.5 top-1.5 z-10 text-[10px] font-semibold tracking-[0.1em] text-[var(--paper)]/50">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <img
+                    src={item.src}
+                    alt={item.name}
+                    className="h-full w-full object-cover opacity-80 grayscale transition duration-500 group-hover:opacity-100 group-hover:grayscale-0"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-
-        {/* Signature divider */}
-        <svg
-          className="absolute inset-x-0 bottom-0 h-6 w-full text-[var(--sage)]/15"
-          viewBox="0 0 240 12"
-          preserveAspectRatio="none"
-          aria-hidden
-        >
-          <path
-            d="M0,12 C10,0 20,0 30,12 C40,0 50,0 60,12 C70,0 80,0 90,12 C100,0 110,0 120,12 C130,0 140,0 150,12 C160,0 170,0 180,12 C190,0 200,0 210,12 C220,0 230,0 240,12 L240,12 L0,12 Z"
-            fill="currentColor"
-          />
-        </svg>
-
       </section>
 
-      {/* PROMO */}
-      <section className="bg-[var(--sage)]/8 px-6 py-16 md:px-16">
+      {/* =====================================================
+          PROMOTIONS
+      ===================================================== */}
+
+      {promotionalProducts.length > 0 && (
+        <section className="bg-[var(--paper)] px-6 py-20 md:px-16">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
+              <div>
+                <Eyebrow index="01" label="Offres actives" />
+                <h2 className="font-display mt-4 text-4xl font-medium text-[var(--forest)] md:text-5xl">
+                  Réductions du moment
+                </h2>
+              </div>
+
+              <Link
+                href="/shop"
+                className="hidden items-center gap-2 border-b border-[var(--forest)]/30 pb-1 text-sm font-semibold text-[var(--forest)] transition hover:border-[var(--forest)] md:flex"
+              >
+                Toutes les offres
+                <ArrowRight size={16} />
+              </Link>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {promotionalProducts.map((product) => (
+                <div key={product._id} className="group relative">
+                  <div className="stamp absolute -right-2 -top-2 z-20">
+                    -{getDiscountPercentage(product)}%
+                  </div>
+
+                  <ProductCard
+                    _id={product._id}
+                    name={product.name}
+                    price={product.price}
+                    discountPrice={product.discountPrice}
+                    image={product.images?.[0] ?? ""}
+                    stock={product.stock}
+                    brand={product.brand?.name}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* =====================================================
+          BEST SELLERS
+      ===================================================== */}
+
+      <section className="bg-[var(--forest)] px-6 py-20 md:px-16">
         <div className="mx-auto max-w-6xl">
-
-          <div className="mb-10 flex items-baseline justify-between">
-
+          <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
             <div>
-              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--sage)]">
-                Offres du moment
-              </span>
-
-              <h2 className="font-display mt-2 text-3xl font-medium text-[var(--sage-dark)] md:text-4xl">
-                Fairys Promo
+              <Eyebrow index="02" label="Sélection" tone="paper" />
+              <h2 className="font-display mt-4 text-4xl font-medium text-[var(--paper)] md:text-5xl">
+                Les incontournables
               </h2>
             </div>
 
-            <a
+            <Link
               href="/shop"
-              className="hidden items-center gap-1 text-sm font-semibold text-[var(--sage-dark)] transition hover:gap-2 md:flex"
+              className="hidden items-center gap-2 border-b border-[var(--paper)]/25 pb-1 text-sm font-semibold text-[var(--paper)] transition hover:border-[var(--paper)]/60 md:flex"
             >
-              Voir tout
+              Voir la boutique
               <ArrowRight size={16} />
-            </a>
-
+            </Link>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
+          {bestSellers.length > 0 ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {bestSellers.map((product, index) => (
+                <div key={product._id} className="relative">
+                  {index < 3 && (
+                    <div className="absolute left-3 top-3 z-20 border border-[var(--gold)]/50 bg-[var(--forest)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--gold)]">
+                      Rang {String(index + 1).padStart(2, "0")}
+                    </div>
+                  )}
 
-            {products.slice(0, 3).map((product) => (
-              <div
-                key={product._id}
-                className="transition duration-300 hover:-translate-y-1"
-              >
-                <ProductCard
-                  _id={product._id}
-                  name={product.name}
-                  price={product.price}
-                  discountPrice={product.discountPrice}
-                  image={product.images?.[0] || ""}
-                  stock={product.stock}
-                  brand={product.brand?.name}
-                />
-              </div>
-            ))}
-
-          </div>
-
+                  <ProductCard
+                    _id={product._id}
+                    name={product.name}
+                    price={product.price}
+                    discountPrice={product.discountPrice}
+                    image={product.images?.[0] ?? ""}
+                    stock={product.stock}
+                    brand={product.brand?.name}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="border border-dashed border-[var(--line-dark)] p-12 text-center">
+              <p className="text-sm text-[var(--paper)]/60">
+                Les meilleures ventes apparaîtront bientôt.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* BEST SELLERS */}
-      <section className="px-6 py-20 md:px-16">
-        <div className="mx-auto max-w-6xl">
+      {/* =====================================================
+          BRANDS
+      ===================================================== */}
 
-          <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--sage)]">
-            Sélection populaire
-          </span>
-
-          <h2 className="font-display mt-2 mb-10 text-3xl font-medium text-[var(--sage-dark)] md:text-4xl">
-            Meilleures ventes
+      <section className="relative overflow-hidden bg-[var(--forest-soft)] py-24">
+        <div className="mx-auto max-w-6xl px-6">
+          <Eyebrow index="04" label="Maisons partenaires" tone="paper" />
+          <h2 className="font-display mt-4 text-4xl font-medium text-[var(--paper)] md:text-5xl">
+            Nos marques
           </h2>
-
-          <div className="grid gap-6 md:grid-cols-3">
-
-            {products.map((product) => (
-              <div
-                key={product._id}
-                className="transition duration-300 hover:-translate-y-1"
-              >
-                <ProductCard
-                  _id={product._id}
-                  name={product.name}
-                  price={product.price}
-                  discountPrice={product.discountPrice}
-                  image={product.images?.[0] || ""}
-                  stock={product.stock}
-                  brand={product.brand?.name}
-                />
-              </div>
-            ))}
-
-          </div>
-
         </div>
+
+        {visibleBrands.length > 0 ? (
+          <div className="pause-on-hover mt-12 overflow-hidden border-y border-[var(--line-dark)]">
+            <div className="animate-marquee flex w-max gap-px">
+              {[...visibleBrands, ...visibleBrands].map((brand, index) => (
+                <Link
+                  key={`${brand._id}-${index}`}
+                  href={`/shop?brand=${brand._id}`}
+                  className="flex h-28 w-48 shrink-0 items-center justify-center border-x border-[var(--line-dark)] bg-[var(--forest-soft)] px-6 grayscale transition duration-300 hover:grayscale-0"
+                >
+                  <BrandCard name={brand.name} />
+                </Link>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto mt-12 max-w-xl px-6 text-center">
+            <p className="text-sm text-[var(--paper)]/50">
+              Nos marques seront bientôt disponibles.
+            </p>
+          </div>
+        )}
       </section>
 
-      {/* CATEGORIES */}
-      <section className="relative overflow-hidden px-6 py-20 md:px-16">
+      {/* =====================================================
+          WHY FAIRY'S
+      ===================================================== */}
+
+      <section className="bg-[var(--paper)] px-6 py-24 md:px-16">
         <div className="mx-auto max-w-6xl">
-
-          <h2 className="font-display mb-10 text-3xl font-medium text-[var(--sage-dark)] md:text-4xl">
-            Nos catégories
-          </h2>
-
-          <div className="grid grid-cols-2 gap-5 md:grid-cols-6">
-
-            {categories.map((category) => (
-              <div
-                key={category.name}
-                className="rounded-2xl transition duration-300 hover:-translate-y-1 hover:shadow-lg"
-              >
-                <CategoryCard {...category} />
-              </div>
-            ))}
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* BRANDS */}
-      <section className="overflow-hidden bg-white py-16">
-
-        <h2 className="font-display mb-10 px-6 text-center text-3xl font-medium text-[var(--sage-dark)] md:px-16 md:text-4xl">
-          Nos marques populaires
-        </h2>
-
-        <div className="pause-on-hover overflow-hidden">
-
-          <div className="animate-marquee flex w-max gap-14">
-
-            {[...brands, ...brands].map((brand, index) => (
-              <div
-                key={brand + index}
-                className="flex w-40 shrink-0 items-center justify-center"
-              >
-                <BrandCard name={brand} />
-              </div>
-            ))}
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* WHY FAIRY'S */}
-      <section className="bg-[var(--cream)] px-6 py-20 md:px-16">
-
-        <div className="mx-auto max-w-6xl">
-
-          <h2 className="font-display text-center text-3xl font-medium text-[var(--sage-dark)] md:text-4xl">
+          <Eyebrow index="05" label="Engagements" />
+          <h2 className="font-display mt-4 max-w-lg text-4xl font-medium text-[var(--forest)] md:text-5xl">
             Pourquoi Fairy&apos;s ?
           </h2>
 
-          <div className="mt-14 grid gap-10 text-center md:grid-cols-3">
-
-            {values.map(({ icon: Icon, title, text }) => (
-              <div
-                key={title}
-                className="flex flex-col items-center rounded-2xl bg-white p-8 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
-              >
-
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sage)]/10 text-[var(--sage-dark)]">
-                  <Icon
-                    size={24}
-                    strokeWidth={1.75}
-                  />
+          <div className="mt-14 grid gap-px overflow-hidden border border-[var(--line)] bg-[var(--line)] md:grid-cols-3">
+            {values.map(({ icon: Icon, title, text }, index) => (
+              <div key={title} className="bg-[var(--paper)] p-9">
+                <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--clay)]">
+                  Article {String(index + 1).padStart(2, "0")}
                 </div>
 
-                <h3 className="font-display mt-5 text-lg font-medium text-[var(--sage-dark)]">
+                <div className="mt-6 flex h-12 w-12 items-center justify-center border border-[var(--forest)]/25 text-[var(--forest)]">
+                  <Icon size={22} strokeWidth={1.6} />
+                </div>
+
+                <h3 className="font-display mt-6 text-xl font-medium text-[var(--forest)]">
                   {title}
                 </h3>
 
-                <p className="mt-2 max-w-xs text-sm text-[var(--ink)]/65">
+                <p className="mt-3 text-sm leading-6 text-[var(--ink)]/60">
                   {text}
                 </p>
-
               </div>
             ))}
+          </div>
+        </div>
+      </section>
 
+      {/* =====================================================
+          NEWSLETTER / FINAL CTA
+      ===================================================== */}
+
+      <section className="relative overflow-hidden bg-[var(--forest)] px-6 py-24 md:px-16">
+        <div className="pointer-events-none absolute -left-32 bottom-0 h-72 w-72 rounded-full bg-[var(--gold)]/10 blur-3xl" />
+
+        <div className="relative mx-auto grid max-w-6xl gap-12 md:grid-cols-[1fr_0.9fr] md:items-center">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--gold)]">
+              Restons en contact
+            </p>
+
+            <h2 className="font-display mt-4 text-4xl font-medium text-[var(--paper)] md:text-5xl">
+              Votre routine.
+              <span className="block italic text-[var(--gold)]">
+                Votre rythme.
+              </span>
+            </h2>
+
+            <p className="mt-5 max-w-sm text-sm leading-6 text-[var(--paper)]/60">
+              Nouveautés, réassorts et conseils — uniquement l&apos;essentiel,
+              directement dans votre boîte mail.
+            </p>
           </div>
 
-        </div>
+          <form className="border-t border-[var(--line-dark)] pt-8">
+            <label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--paper)]/50">
+              Votre adresse email
+            </label>
 
-      </section>
+            <div className="mt-3 flex items-end gap-4 border-b border-[var(--paper)]/25 pb-3">
+              <input
+                type="email"
+                required
+                placeholder="vous@exemple.com"
+                className="w-full bg-transparent text-sm text-[var(--paper)] outline-none placeholder:text-[var(--paper)]/35"
+              />
 
-      {/* NEWSLETTER */}
-      <section className="relative overflow-hidden bg-[var(--sage-dark)] px-6 py-20 text-center md:px-16">
+              <button
+                type="submit"
+                className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-[var(--gold)] transition hover:gap-3"
+              >
+                S&apos;inscrire
+                <ArrowRight size={16} />
+              </button>
+            </div>
 
-        <div
-          className="pointer-events-none absolute h-[300px] w-[300px] -translate-x-1/2 bg-[var(--gold)]/10 blur-3xl"
-          style={{
-            top: "-40%",
-            left: "50%",
-            borderRadius: "50%",
-          }}
-          aria-hidden
-        />
-
-        <div className="relative mx-auto max-w-md">
-
-          <h2 className="font-display text-3xl font-medium text-white md:text-4xl">
-            Recevez nos offres
-          </h2>
-
-          <p className="mt-3 text-sm text-white/70">
-            Promotions exclusives et conseils beauté,
-            directement dans votre boîte mail.
-          </p>
-
-          <form className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-
-            <input
-              type="email"
-              required
-              className="input !mb-0 flex-1 border-none bg-white text-[var(--ink)]"
-              placeholder="Votre email"
-            />
-
-            <button
-              type="submit"
-              className="w-full shrink-0 rounded-full bg-[var(--gold)] px-7 py-3 text-sm font-semibold text-[var(--sage-dark)] transition hover:brightness-95 sm:w-auto"
-            >
-              S&apos;inscrire
-            </button>
-
+            <p className="mt-4 text-[11px] text-[var(--paper)]/35">
+              Pas de spam. Uniquement les nouveautés et offres Fairy&apos;s.
+            </p>
           </form>
-
         </div>
-
       </section>
-
     </main>
   );
 }

@@ -14,6 +14,16 @@ const ProductSchema = new Schema(
       trim: true,
     },
 
+    benefits: {
+      type: [String],
+      default: [],
+    },
+
+    usage: {
+      type: [String],
+      default: [],
+    },
+
     price: {
       type: Number,
       required: true,

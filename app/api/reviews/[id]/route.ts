@@ -1,59 +1,139 @@
+import { NextRequest } from "next/server";
+import { getServerSession } from "next-auth";
+import mongoose from "mongoose";
+
 import connectDB from "@/lib/mongodb";
+import { authOptions } from "@/lib/auth";
 
 import Review from "@/models/Review";
 
-
-
-// DELETE REVIEW
-
 export async function DELETE(
-request:Request,
-context:{
-params:Promise<{
-id:string
-}>
-}
-){
+  request: NextRequest,
+  context: {
+    params: Promise<{
+      id: string;
+    }>;
+  }
+): Promise<Response> {
+  try {
+    /*
+     * AUTHENTICATION
+     */
 
+    const session =
+      await getServerSession(authOptions);
 
-try{
+    if (!session?.user?.id) {
+      return Response.json(
+        {
+          error:
+            "Not authenticated.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
 
+    /*
+     * VALIDATE ID
+     */
 
-await connectDB();
+    const { id } =
+      await context.params;
 
+    if (
+      !mongoose.Types.ObjectId.isValid(id)
+    ) {
+      return Response.json(
+        {
+          error:
+            "Invalid review ID.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
-const {id}=await context.params;
+    await connectDB();
 
+    /*
+     * FIND REVIEW
+     */
 
+    const review =
+      await Review.findById(id);
 
-await Review.findByIdAndDelete(id);
+    if (!review) {
+      return Response.json(
+        {
+          error:
+            "Review not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
 
+    /*
+     * AUTHORIZATION
+     *
+     * Admin can delete anything.
+     *
+     * Customer can delete only
+     * their own review.
+     */
 
+    const isAdmin =
+      session.user.role === "admin";
 
-return Response.json({
+    const isOwner =
+      String(review.user) ===
+      String(session.user.id);
 
-message:"Review deleted"
+    if (!isAdmin && !isOwner) {
+      return Response.json(
+        {
+          error:
+            "You are not allowed to delete this review.",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
 
-});
+    /*
+     * DELETE
+     */
 
+    await review.deleteOne();
 
-}
-catch(error){
+    return Response.json(
+      {
+        message:
+          "Review deleted successfully.",
+      },
+      {
+        status: 200,
+      }
+    );
+  } catch (error) {
+    console.error(
+      "DELETE REVIEW ERROR:",
+      error
+    );
 
-
-return Response.json(
-
-{
-error:"Delete failed"
-},
-
-{
-status:500
-}
-
-);
-
-
-}
-
+    return Response.json(
+      {
+        error:
+          "Delete failed.",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
 }

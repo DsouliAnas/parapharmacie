@@ -1,70 +1,32 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-
 import CartProvider from "@/components/CartProvider";
 import SessionProvider from "@/components/SessionProvider";
-
+import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
-
   title: "Fairy's Parapharmacie",
-
   description:
     "Votre parapharmacie en ligne pour vos produits santé et beauté",
-
 };
 
-
-
 export default function RootLayout({
-
-children,
-
+  children,
 }: Readonly<{
-
-children: React.ReactNode;
-
-}>) {
-
-
-return (
-
-<html lang="fr">
-
-
-<body>
-
-
-<SessionProvider>
-
-
-<CartProvider>
-
-
-<Navbar />
-
-
-{children}
-
-
-<Footer />
-
-
-</CartProvider>
-
-
-</SessionProvider>
-
-
-</body>
-
-
-</html>
-
-);
-
-
+  children: React.ReactNode;
+}>): React.ReactElement {
+  return (
+    <html lang="fr">
+      <body>
+        <SessionProvider>
+          <CartProvider>
+            <AppShell>
+              {children}
+            </AppShell>
+          </CartProvider>
+        </SessionProvider>
+      </body>
+    </html>
+  );
 }

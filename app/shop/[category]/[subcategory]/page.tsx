@@ -23,53 +23,15 @@ interface Subcategory {
   };
 }
 
-async function getSubcategory(
-  slug: string
-): Promise<Subcategory | null> {
-  const response = await fetch(
-    "http://localhost:3000/api/subcategories",
-    {
-      cache: "no-store",
-    }
-  );
+type SortOption =
+  | "newest"
+  | "oldest"
+  | "price-asc"
+  | "price-desc"
+  | "name-asc"
+  | "name-desc";
 
-  if (!response.ok) {
-    return null;
-  }
-
-  const subcategories = await response.json();
-
-  const subcategory = subcategories.find(
-    (item: Subcategory) => item.slug === slug
-  );
-
-  return subcategory || null;
-}
-
-async function getProducts(
-  subcategoryId: string,
-  sort: string
-): Promise<Product[]> {
-  const response = await fetch(
-    `http://localhost:3000/api/products?subcategory=${subcategoryId}&sort=${sort}`,
-    {
-      cache: "no-store",
-    }
-  );
-
-  if (!response.ok) {
-    return [];
-  }
-
-  const products = await response.json();
-
-  return Array.isArray(products) ? products : [];
-}
-
-export default async function SubcategoryPage({
-  params,
-  searchParams,
-}: {
+interface SubcategoryPageProps {
   params: Promise<{
     category: string;
     subcategory: string;
@@ -77,13 +39,144 @@ export default async function SubcategoryPage({
   searchParams: Promise<{
     sort?: string;
   }>;
-}) {
-  const {
-  category: categorySlug,
-  subcategory: subcategorySlug,
-} = await params;
+}
 
-const { sort = "newest" } = await searchParams;
+function isSortOption(value: string): value is SortOption {
+  return (
+    value === "newest" ||
+    value === "oldest" ||
+    value === "price-asc" ||
+    value === "price-desc" ||
+    value === "name-asc" ||
+    value === "name-desc"
+  );
+}
+
+async function getSubcategory(
+  slug: string
+): Promise<Subcategory | null> {
+  const baseUrl =
+    process.env.NEXTAUTH_URL || "http://localhost:3000";
+
+  try {
+    const response = await fetch(
+      `${baseUrl}/api/subcategories`,
+      {
+        cache: "no-store",
+      }
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data: unknown = await response.json();
+
+    if (!Array.isArray(data)) {
+      return null;
+    }
+
+    const subcategory = data.find(
+      (item: unknown): item is Subcategory => {
+        if (
+          typeof item !== "object" ||
+          item === null
+        ) {
+          return false;
+        }
+
+        const candidate =
+          item as Partial<Subcategory>;
+
+        return (
+          typeof candidate.slug === "string" &&
+          candidate.slug === slug &&
+          typeof candidate._id === "string" &&
+          typeof candidate.name === "string" &&
+          typeof candidate.category === "object" &&
+          candidate.category !== null &&
+          typeof candidate.category._id === "string" &&
+          typeof candidate.category.name === "string"
+        );
+      }
+    );
+
+    return subcategory ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function getProducts(
+  subcategoryId: string,
+  sort: SortOption
+): Promise<Product[]> {
+  const baseUrl =
+    process.env.NEXTAUTH_URL || "http://localhost:3000";
+
+  try {
+    const response = await fetch(
+      `${baseUrl}/api/products?subcategory=${encodeURIComponent(
+        subcategoryId
+      )}&sort=${encodeURIComponent(sort)}`,
+      {
+        cache: "no-store",
+      }
+    );
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const data: unknown = await response.json();
+
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    return data.filter(
+      (item: unknown): item is Product => {
+        if (
+          typeof item !== "object" ||
+          item === null
+        ) {
+          return false;
+        }
+
+        const product = item as Partial<Product>;
+
+        return (
+          typeof product._id === "string" &&
+          typeof product.name === "string" &&
+          typeof product.description === "string" &&
+          typeof product.price === "number" &&
+          typeof product.stock === "number" &&
+          typeof product.isActive === "boolean" &&
+          Array.isArray(product.images)
+        );
+      }
+    );
+  } catch {
+    return [];
+  }
+}
+
+export default async function SubcategoryPage({
+  params,
+  searchParams,
+}: SubcategoryPageProps) {
+  const {
+    category: categorySlug,
+    subcategory: subcategorySlug,
+  } = await params;
+
+  const { sort: sortParameter } =
+    await searchParams;
+
+  const sort: SortOption =
+    sortParameter && isSortOption(sortParameter)
+      ? sortParameter
+      : "newest";
 
   const subcategory =
     await getSubcategory(subcategorySlug);
@@ -92,142 +185,195 @@ const { sort = "newest" } = await searchParams;
     notFound();
   }
 
-const products =
-  await getProducts(subcategory._id, sort);
+  if (subcategory.category._id === "") {
+    notFound();
+  }
+
+  const products = await getProducts(
+    subcategory._id,
+    sort
+  );
 
   return (
-    <main className="min-h-screen bg-[#faf9f7]">
+    <main className="min-h-screen bg-[var(--paper)]">
       <div className="mx-auto max-w-7xl px-6 py-12">
-
-        {/* Breadcrumb */}
-        <div className="mb-8 text-sm text-gray-500">
+        <div className="mb-8 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--ink)]/45">
           <Link
             href="/"
-            className="hover:text-pink-500"
+            className="transition hover:text-[var(--clay)]"
           >
             Accueil
           </Link>
 
-          <span className="mx-2">/</span>
+          <span className="text-[var(--ink)]/25">
+            /
+          </span>
 
           <Link
             href={`/shop/${categorySlug}`}
-            className="hover:text-pink-500"
+            className="transition hover:text-[var(--clay)]"
           >
             {subcategory.category.name}
           </Link>
 
-          <span className="mx-2">/</span>
+          <span className="text-[var(--ink)]/25">
+            /
+          </span>
 
-          <span className="text-gray-800">
+          <span className="text-[var(--forest)]">
             {subcategory.name}
           </span>
         </div>
 
-        {/* Title */}
-        <div className="mb-10">
-          <h1 className="text-4xl font-bold text-[#7C8B73]">
+        <div className="mb-10 border-b border-[var(--line)] pb-8">
+          <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--forest)]">
+            <span>Sous-catégorie</span>
+            <span className="leader" />
+          </div>
+
+          <h1 className="font-display mt-4 text-4xl font-medium text-[var(--forest)] md:text-5xl">
             {subcategory.name}
           </h1>
 
-          <p className="mt-2 text-gray-500">
+          <p className="mt-3 text-sm text-[var(--ink)]/55">
             Découvrez nos produits{" "}
             {subcategory.name.toLowerCase()}.
           </p>
         </div>
 
+        <div className="mb-8 flex items-center justify-between border-b border-[var(--line)] pb-4">
+          <p className="text-[13px] uppercase tracking-[0.1em] text-[var(--ink)]/50">
+            {products.length}{" "}
+            {products.length > 1
+              ? "produits"
+              : "produit"}
+          </p>
 
-        <div className="mb-6 flex justify-end">
-             <ProductSort />
+          <ProductSort />
         </div>
 
-        {/* Products */}
         {products.length === 0 ? (
-          <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
-            <p className="text-gray-500">
-              Aucun produit disponible dans cette catégorie.
+          <div className="border border-dashed border-[var(--line)] bg-[var(--paper-deep)] p-10 text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--clay)]">
+              Rayon vide
+            </p>
+
+            <p className="mt-3 text-sm text-[var(--ink)]/55">
+              Aucun produit disponible dans cette
+              catégorie.
             </p>
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid gap-px overflow-hidden border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {products.map((product) => {
+              const hasDiscount =
+                typeof product.discountPrice ===
+                  "number" &&
+                product.discountPrice > 0 &&
+                product.discountPrice <
+                  product.price;
 
-            {products.map((product) => (
-              <Link
-                key={product._id}
-                href={`/products/${product._id}`}
-                className="group overflow-hidden rounded-2xl bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
-              >
+              const discountPercentage =
+                hasDiscount
+                  ? Math.round(
+                      ((product.price -
+                        product.discountPrice!) /
+                        product.price) *
+                        100
+                    )
+                  : 0;
 
-                {/* Image */}
-                <div className="h-64 overflow-hidden bg-gray-100">
+              const isInStock =
+                product.stock > 0 &&
+                product.isActive;
 
-                  {product.images?.[0] ? (
-                    <img
-                      src={product.images[0]}
-                      alt={product.name}
-                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-gray-400">
-                      Pas dimage
+              return (
+                <Link
+                  key={product._id}
+                  href={`/products/${product._id}`}
+                  className="group relative bg-[var(--paper)] transition hover:bg-[var(--paper-deep)]"
+                >
+                  {hasDiscount && (
+                    <div className="absolute left-3 top-3 z-10 bg-[var(--clay)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--paper)]">
+                      -{discountPercentage}%
                     </div>
                   )}
 
-                </div>
-
-                {/* Information */}
-                <div className="p-5">
-
-                  <h2 className="font-semibold text-gray-900">
-                    {product.name}
-                  </h2>
-
-                  <p className="mt-2 line-clamp-2 text-sm text-gray-500">
-                    {product.description}
-                  </p>
-
-                  <div className="mt-4 flex items-center justify-between">
-
-                    <div>
-                      {product.discountPrice ? (
-                        <div className="flex items-center gap-2">
-
-                          <span className="font-bold text-[#7C8B73]">
-                            {product.discountPrice} TND
-                          </span>
-
-                          <span className="text-sm text-gray-400 line-through">
-                            {product.price} TND
-                          </span>
-
-                        </div>
-                      ) : (
-                        <span className="font-bold text-[#7C8B73]">
-                          {product.price} TND
-                        </span>
-                      )}
-                    </div>
-
-                    {product.stock > 0 ? (
-                      <span className="text-xs text-green-600">
-                        En stock
-                      </span>
+                  <div className="h-64 overflow-hidden bg-[var(--paper-deep)]">
+                    {product.images.length > 0 ? (
+                      <img
+                        src={product.images[0]}
+                        alt={product.name}
+                        className="h-full w-full object-cover grayscale-[10%] transition duration-500 group-hover:scale-105 group-hover:grayscale-0"
+                      />
                     ) : (
-                      <span className="text-xs text-red-500">
-                        Rupture
-                      </span>
+                      <div className="flex h-full items-center justify-center text-[11px] uppercase tracking-[0.14em] text-[var(--ink)]/30">
+                        Pas d&apos;image
+                      </div>
                     )}
-
                   </div>
 
-                </div>
+                  <div className="border-t border-[var(--line)] p-5">
+                    <h2 className="font-display text-lg font-medium text-[var(--forest)]">
+                      {product.name}
+                    </h2>
 
-              </Link>
-            ))}
+                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--ink)]/55">
+                      {product.description}
+                    </p>
 
+                    <div className="mt-4 flex items-center justify-between border-t border-[var(--line)] pt-4">
+                      <div>
+                        {hasDiscount ? (
+                          <div className="flex items-baseline gap-2">
+                            <span className="font-display italic text-[var(--forest)]">
+                              {product.discountPrice!.toFixed(
+                                2
+                              )}{" "}
+                              TND
+                            </span>
+
+                            <span className="text-xs text-[var(--ink)]/35 line-through">
+                              {product.price.toFixed(2)}{" "}
+                              TND
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="font-display italic text-[var(--forest)]">
+                            {product.price.toFixed(2)}{" "}
+                            TND
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em]">
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            isInStock
+                              ? "bg-[var(--forest)]"
+                              : "bg-[var(--clay)]"
+                          }`}
+                        />
+
+                        <span
+                          className={
+                            isInStock
+                              ? "text-[var(--forest)]"
+                              : "text-[var(--clay)]"
+                          }
+                        >
+                          {isInStock
+                            ? "En stock"
+                            : "Rupture"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
-
       </div>
     </main>
   );

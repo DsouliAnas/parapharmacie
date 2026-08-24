@@ -1,169 +1,271 @@
 import { NextRequest } from "next/server";
-import connectDB from "@/lib/mongodb";
-import Wishlist from "@/models/Wishlist";
+import mongoose from "mongoose";
 import { getServerSession } from "next-auth";
+
+import connectDB from "@/lib/mongodb";
 import { authOptions } from "@/lib/auth";
 
-import "@/models/Product";
+import Wishlist from "@/models/Wishlist";
+import Product from "@/models/Product";
 
+interface AddWishlistBody {
+  product?: unknown;
+}
 
-// GET USER WISHLIST
+/*
+|--------------------------------------------------------------------------
+| GET USER WISHLIST
+|--------------------------------------------------------------------------
+| Authenticated users only
+*/
 
-export async function GET() {
-
+export async function GET(): Promise<Response> {
   try {
+    const session =
+      await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return Response.json(
+        {
+          error: "Not authenticated",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
 
     await connectDB();
 
+    const wishlist =
+      await Wishlist.find({
+        user: session.user.id,
+      })
+        .populate(
+          "product"
+        )
+        .sort({
+          createdAt: -1,
+        })
+        .lean();
 
-    const session = await getServerSession(authOptions);
-
-
-    if (!session?.user?.id) {
-
-      return Response.json(
-        {
-          error:"Not authenticated"
-        },
-        {
-          status:401
-        }
-      );
-
-    }
-
-
-
-    const wishlist = await Wishlist.find({
-      user: session.user.id
-    })
-    .populate("product");
-
-
-
-    return Response.json(wishlist);
-
-
-
-  } catch(error) {
-
-
-    console.log(error);
-
+    return Response.json(
+      wishlist,
+      {
+        status: 200,
+      }
+    );
+  } catch (error) {
+    console.error(
+      "GET WISHLIST ERROR:",
+      error
+    );
 
     return Response.json(
       {
-        error:"Failed to get wishlist"
+        error:
+          "Failed to get wishlist",
       },
       {
-        status:500
+        status: 500,
       }
     );
-
-
   }
-
 }
 
-
-
-
-
-// ADD TO WISHLIST
+/*
+|--------------------------------------------------------------------------
+| ADD TO WISHLIST
+|--------------------------------------------------------------------------
+| Authenticated users only
+*/
 
 export async function POST(
-request:NextRequest
-){
+  request: NextRequest
+): Promise<Response> {
+  try {
+    /*
+     * AUTHENTICATION
+     */
 
-try {
+    const session =
+      await getServerSession(authOptions);
 
+    if (!session?.user?.id) {
+      return Response.json(
+        {
+          error: "Not authenticated",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
 
-await connectDB();
+    /*
+     * REQUEST BODY
+     */
 
+    let body: unknown;
 
-const session =
-await getServerSession(authOptions);
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        {
+          error: "Invalid JSON body.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
+    if (
+      typeof body !== "object" ||
+      body === null ||
+      Array.isArray(body)
+    ) {
+      return Response.json(
+        {
+          error: "Invalid request body.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
+    const data =
+      body as AddWishlistBody;
 
-if(!session?.user?.id){
+    /*
+     * PRODUCT ID
+     */
 
-return Response.json(
-{
-error:"Not authenticated"
-},
-{
-status:401
-}
-);
+    if (
+      typeof data.product !== "string" ||
+      !mongoose.Types.ObjectId.isValid(
+        data.product
+      )
+    ) {
+      return Response.json(
+        {
+          error: "Invalid product ID.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
-}
+    const productId =
+      new mongoose.Types.ObjectId(
+        data.product
+      );
 
+    await connectDB();
 
+    /*
+     * CHECK PRODUCT
+     */
 
-const body =
-await request.json();
+    const product =
+      await Product.findOne({
+        _id: productId,
+        isActive: true,
+      })
+        .select("_id")
+        .lean();
 
+    if (!product) {
+      return Response.json(
+        {
+          error:
+            "Product not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
 
+    /*
+     * PREVENT DUPLICATE
+     */
 
-const exists =
-await Wishlist.findOne({
+    const exists =
+      await Wishlist.findOne({
+        user: session.user.id,
+        product: productId,
+      })
+        .select("_id")
+        .lean();
 
-user:session.user.id,
+    if (exists) {
+      return Response.json(
+        {
+          message:
+            "Already in wishlist",
+        },
+        {
+          status: 200,
+        }
+      );
+    }
 
-product:body.product
+    /*
+     * CREATE
+     */
 
-});
+    const wishlist =
+      await Wishlist.create({
+        user: session.user.id,
+        product: productId,
+      });
 
+    return Response.json(
+      wishlist,
+      {
+        status: 201,
+      }
+    );
+  } catch (error) {
+    console.error(
+      "ADD WISHLIST ERROR:",
+      error
+    );
 
+    /*
+     * Handle duplicate-key errors
+     * if a unique compound index exists.
+     */
 
-if(exists){
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === 11000
+    ) {
+      return Response.json(
+        {
+          message:
+            "Already in wishlist",
+        },
+        {
+          status: 200,
+        }
+      );
+    }
 
-return Response.json(
-{
-message:"Already in wishlist"
-}
-);
-
-}
-
-
-
-const wishlist =
-await Wishlist.create({
-
-user:session.user.id,
-
-product:body.product
-
-});
-
-
-
-return Response.json(
-wishlist,
-{
-status:201
-}
-);
-
-
-
-}catch(error){
-
-console.log(error);
-
-
-return Response.json(
-{
-error:"Failed to add wishlist"
-},
-{
-status:500
-}
-);
-
-}
-
-
+    return Response.json(
+      {
+        error:
+          "Failed to add wishlist",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
 }

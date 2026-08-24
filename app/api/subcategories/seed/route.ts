@@ -1,8 +1,15 @@
+import { getServerSession } from "next-auth";
+
 import connectDB from "@/lib/mongodb";
+import { authOptions } from "@/lib/auth";
+
 import Category from "@/models/Category";
 import Subcategory from "@/models/Subcategory";
 
-const subcategoryData: Record<string, string[]> = {
+const subcategoryData: Record<
+  string,
+  string[]
+> = {
   Visage: [
     "Nettoyants",
     "Démaquillants",
@@ -115,11 +122,58 @@ function createSlug(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export async function POST() {
+/*
+|--------------------------------------------------------------------------
+| SEED SUBCATEGORIES
+|--------------------------------------------------------------------------
+| Admin only
+*/
+
+export async function POST(): Promise<Response> {
   try {
+    /*
+     * AUTHENTICATION
+     */
+
+    const session =
+      await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return Response.json(
+        {
+          error: "Not authenticated.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    /*
+     * AUTHORIZATION
+     */
+
+    if (session.user.role !== "admin") {
+      return Response.json(
+        {
+          error: "Admin access required.",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
     await connectDB();
 
-    const categories = await Category.find();
+    /*
+     * FIND CATEGORIES
+     */
+
+    const categories =
+      await Category.find()
+        .select("_id name")
+        .lean();
 
     if (categories.length === 0) {
       return Response.json(
@@ -135,6 +189,10 @@ export async function POST() {
     let created = 0;
     let skipped = 0;
 
+    /*
+     * CREATE SUBCATEGORIES
+     */
+
     for (const category of categories) {
       const subcategories =
         subcategoryData[category.name];
@@ -144,13 +202,20 @@ export async function POST() {
       }
 
       for (const name of subcategories) {
-        const slug = createSlug(name);
+        const slug =
+          createSlug(name);
+
+        if (!slug) {
+          continue;
+        }
 
         const exists =
           await Subcategory.findOne({
             category: category._id,
             slug,
-          });
+          })
+            .select("_id")
+            .lean();
 
         if (exists) {
           skipped++;
@@ -168,12 +233,17 @@ export async function POST() {
       }
     }
 
-    return Response.json({
-      message:
-        "Subcategories seeded successfully",
-      created,
-      skipped,
-    });
+    return Response.json(
+      {
+        message:
+          "Subcategories seeded successfully",
+        created,
+        skipped,
+      },
+      {
+        status: 200,
+      }
+    );
   } catch (error) {
     console.error(
       "SEED SUBCATEGORIES ERROR:",
@@ -182,7 +252,8 @@ export async function POST() {
 
     return Response.json(
       {
-        error: "Failed to seed subcategories",
+        error:
+          "Failed to seed subcategories",
       },
       {
         status: 500,
