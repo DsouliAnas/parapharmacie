@@ -1,12 +1,20 @@
 import Image from "next/image";
+import ContactForm from "@/components/ContactForm";
 import Link from "next/link";
+import {
+  MapPin,
+  Clock3,
+  Mail,
+  Phone,
+  Send,
+} from "lucide-react";
 import {
   ArrowRight,
   ShieldCheck,
   Sparkles,
   Truck,
 } from "lucide-react";
-
+import PromotionsCarousel from "@/components/PromotionsCarousel";
 import ProductCard from "@/components/ProductCard";
 import BrandCard from "@/components/BrandCard";
 export const dynamic = "force-dynamic";
@@ -135,7 +143,9 @@ async function getBrands(): Promise<Brand[]> {
   }
 }
 
-function getDiscountPercentage(product: Product): number {
+function getDiscountPercentage(
+  product: Pick<Product, "price" | "discountPrice">
+): number {
   if (
     typeof product.discountPrice !== "number" ||
     product.discountPrice >= product.price ||
@@ -177,14 +187,14 @@ export default async function Home() {
     getBrands(),
   ]);
 
-  const promotionalProducts = products
-    .filter(
-      (product) =>
-        typeof product.discountPrice === "number" &&
-        product.discountPrice < product.price
-    )
-    .sort((a, b) => getDiscountPercentage(b) - getDiscountPercentage(a))
-    .slice(0, 4);
+const promotionalProducts = products
+  .filter(
+    (product) =>
+      typeof product.discountPrice === "number" &&
+      product.discountPrice > 0 &&
+      product.discountPrice < product.price
+  )
+  .sort((a, b) => getDiscountPercentage(b) - getDiscountPercentage(a));
 
   const bestSellers = [...products]
     .sort((a, b) => {
@@ -315,52 +325,37 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* =====================================================
-          PROMOTIONS
-      ===================================================== */}
+{/* =====================================================
+    PROMOTIONS — Dynamic slider (4–5 visible)
+===================================================== */}
+{promotionalProducts.length > 0 && (
+  <section className="bg-[var(--paper)] px-6 py-20 md:px-16">
+    <div className="mx-auto max-w-6xl">
+      <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
+        <div>
+          <Eyebrow index="01" label="Promotions exclusives" />
+          <h2 className="font-display mt-4 text-4xl font-medium text-[var(--forest)] md:text-5xl">
+            Offres spéciales
+          </h2>
+          <p className="mt-4 max-w-2xl text-sm text-[var(--ink)]/70">
+            Découvrez les meilleures promotions du moment. Faites glisser
+            pour voir toutes les offres.
+          </p>
+        </div>
 
-      {promotionalProducts.length > 0 && (
-        <section className="bg-[var(--paper)] px-6 py-20 md:px-16">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
-              <div>
-                <Eyebrow index="01" label="Offres actives" />
-                <h2 className="font-display mt-4 text-4xl font-medium text-[var(--forest)] md:text-5xl">
-                  Réductions du moment
-                </h2>
-              </div>
+<Link
+  href="/offres"
+  className="hidden items-center gap-2 border-b border-[var(--forest)]/30 pb-1 text-sm font-semibold text-[var(--forest)] transition hover:border-[var(--forest)] md:flex"
+>
+  Toutes les offres
+  <ArrowRight size={16} />
+</Link>
+      </div>
 
-              <Link
-                href="/shop"
-                className="hidden items-center gap-2 border-b border-[var(--forest)]/30 pb-1 text-sm font-semibold text-[var(--forest)] transition hover:border-[var(--forest)] md:flex"
-              >
-                Toutes les offres
-                <ArrowRight size={16} />
-              </Link>
-            </div>
-
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {promotionalProducts.map((product) => (
-                <div key={product._id} className="group relative">
-                  <div className="stamp absolute -right-2 -top-2 z-20">
-                    -{getDiscountPercentage(product)}%
-                  </div>
-
-                  <ProductCard
-                    _id={product._id}
-                    name={product.name}
-                    price={product.price}
-                    discountPrice={product.discountPrice}
-                    image={product.images?.[0] ?? ""}
-                    stock={product.stock}
-                    brand={product.brand?.name}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      <PromotionsCarousel products={promotionalProducts} />
+    </div>
+  </section>
+)}
 
       {/* =====================================================
           BEST SELLERS
@@ -494,52 +489,116 @@ export default async function Home() {
       <section className="relative overflow-hidden bg-[var(--forest)] px-6 py-24 md:px-16">
         <div className="pointer-events-none absolute -left-32 bottom-0 h-72 w-72 rounded-full bg-[var(--gold)]/10 blur-3xl" />
 
-        <div className="relative mx-auto grid max-w-6xl gap-12 md:grid-cols-[1fr_0.9fr] md:items-center">
+
+
+<section className="relative overflow-hidden bg-[var(--forest)] px-6 py-24 md:px-16">
+  <div className="mx-auto grid max-w-6xl gap-16 md:grid-cols-2">
+
+    {/* Contact Infos */}
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--gold)]">
+        Contact
+      </p>
+
+      <h2 className="font-display mt-4 text-4xl font-medium text-[var(--paper)] md:text-5xl">
+        Nous contacter
+      </h2>
+
+      <p className="mt-5 max-w-md text-sm leading-7 text-[var(--paper)]/65">
+        Une question concernant un produit, une commande ou une
+        livraison ? Notre équipe est à votre disposition.
+      </p>
+
+      <div className="mt-12 space-y-8">
+
+        <div className="flex gap-4">
+          <MapPin
+            size={24}
+            className="text-[var(--gold)]"
+          />
+
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--gold)]">
-              Restons en contact
-            </p>
+            <h3 className="font-semibold text-[var(--paper)]">
+              Adresse
+            </h3>
 
-            <h2 className="font-display mt-4 text-4xl font-medium text-[var(--paper)] md:text-5xl">
-              Votre routine.
-              <span className="block italic text-[var(--gold)]">
-                Votre rythme.
-              </span>
-            </h2>
-
-            <p className="mt-5 max-w-sm text-sm leading-6 text-[var(--paper)]/60">
-              Nouveautés, réassorts et conseils — uniquement l&apos;essentiel,
-              directement dans votre boîte mail.
+            <p className="mt-1 text-sm text-[var(--paper)]/60">
+              Ariana, Tunisie
             </p>
           </div>
-
-          <form className="border-t border-[var(--line-dark)] pt-8">
-            <label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--paper)]/50">
-              Votre adresse email
-            </label>
-
-            <div className="mt-3 flex items-end gap-4 border-b border-[var(--paper)]/25 pb-3">
-              <input
-                type="email"
-                required
-                placeholder="vous@exemple.com"
-                className="w-full bg-transparent text-sm text-[var(--paper)] outline-none placeholder:text-[var(--paper)]/35"
-              />
-
-              <button
-                type="submit"
-                className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-[var(--gold)] transition hover:gap-3"
-              >
-                S&apos;inscrire
-                <ArrowRight size={16} />
-              </button>
-            </div>
-
-            <p className="mt-4 text-[11px] text-[var(--paper)]/35">
-              Pas de spam. Uniquement les nouveautés et offres Fairy&apos;s.
-            </p>
-          </form>
         </div>
+
+        <div className="flex gap-4">
+          <Clock3
+            size={24}
+            className="text-[var(--gold)]"
+          />
+
+          <div>
+            <h3 className="font-semibold text-[var(--paper)]">
+              Horaires
+            </h3>
+
+            <p className="mt-1 text-sm text-[var(--paper)]/60">
+              Ouvert 24h/24
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          <Mail
+            size={24}
+            className="text-[var(--gold)]"
+          />
+
+          <div>
+            <h3 className="font-semibold text-[var(--paper)]">
+              E-mail
+            </h3>
+
+            <p className="mt-1 text-sm text-[var(--paper)]/60">
+              contact@fairys.tn
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          <Phone
+            size={24}
+            className="text-[var(--gold)]"
+          />
+
+          <div>
+            <h3 className="font-semibold text-[var(--paper)]">
+              Téléphone
+            </h3>
+
+            <p className="mt-1 text-sm text-[var(--paper)]/60">
+              23 203 203
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    {/* Contact Form */}
+    <div className="rounded-2xl border border-[var(--line-dark)] p-8 md:p-10">
+  <h3 className="font-display text-2xl text-[var(--paper)]">
+    Une question ?
+  </h3>
+
+  <p className="mt-2 text-sm text-[var(--paper)]/50">
+    Nous vous répondrons dans les plus brefs délais.
+  </p>
+
+  <div className="mt-8">
+    <ContactForm />
+  </div>
+</div>
+
+  </div>
+</section>
       </section>
     </main>
   );

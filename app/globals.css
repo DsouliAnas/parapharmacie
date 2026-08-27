@@ -203,3 +203,10 @@ img {
   outline: 2px solid var(--clay);
   outline-offset: 2px;
 }
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { Mail, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -7,7 +8,7 @@ import { useState } from "react";
 interface AdminMenuItem {
   label: string;
   href: string;
-  icon: string;
+  icon: string | LucideIcon;
 }
 
 const menuItems: AdminMenuItem[] = [
@@ -36,6 +37,11 @@ const menuItems: AdminMenuItem[] = [
     href: "/admin/orders",
     icon: "📦",
   },
+  {
+  label: "Messages",
+  href: "/admin/messages",
+  icon: Mail,
+}
 ];
 
 export default function AdminSidebar(): React.ReactElement {
@@ -289,7 +295,11 @@ export default function AdminSidebar(): React.ReactElement {
                   `}
                 >
                   <span className="text-xl">
-                    {item.icon}
+                    {typeof item.icon === "string" ? (
+                      item.icon
+                    ) : (
+                      <item.icon />
+                    )}
                   </span>
 
                   <span>
@@ -426,7 +436,11 @@ export default function AdminSidebar(): React.ReactElement {
                   `}
                 >
                   <span className="text-lg">
-                    {item.icon}
+                    {typeof item.icon === "string" ? (
+                      item.icon
+                    ) : (
+                      <item.icon />
+                    )}
                   </span>
 
                   <span>
